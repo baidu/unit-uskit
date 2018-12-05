@@ -1,0 +1,112 @@
+backend {
+    name : "redis_backend"
+    # 将server修改为你的Redis服务器ip:port
+    server : "@redis_server"
+    protocol : "redis"
+    connect_timeout_ms : 100
+    timeout_ms : 100
+    max_retry : 1
+
+    response_template {
+        name : "redis_response_template"
+
+        output {
+            key : "/"
+            expr : "$response"
+        }
+    }
+
+    service {
+        name : "get_session"
+        request {
+            def {
+                key : "session_prefix"
+                expr : "'sess:' + get($request, 'uuid') + ':' + get($request, 'usid')"
+            }
+            redis_cmd {
+                op : "get"
+                arg : "$session_prefix + ':bot_session'"
+            }
+            redis_cmd {
+                op : "get"
+                arg : "$session_prefix + ':bot_id'"
+            }
+        }
+        response {
+            output {
+                key : "bot_session"
+                expr : "get($response, '/0/error') == 0 ? get($response, '/0/data') : ''"
+            }
+            output {
+                key : "bot_id"
+                expr : "get($response, '/1/error') == 0 ? get($response, '/1/data') : ''"
+            }
+        }
+    }
+
+    service {
+        name : "set_session"
+        request {
+            def {
+                key : "session_prefix"
+                expr : "'sess:' + get($request, 'uuid') + ':' + get($request, 'usid')"
+            }
+            def {
+                key : "final_skill"
+                expr : "get($result, 'skill')"
+            }
+            redis_cmd {
+                op : "set"
+                arg : "$session_prefix + ':bot_session'"
+                arg : "get($backend, $final_skill + '/session/bot_session')"
+            }
+            redis_cmd {
+                op : "set"
+                arg : "$session_prefix + ':bot_id'"
+                arg : "get($backend, $final_skill + '/session/bot_id')"
+            }
+        }
+        response {
+            include : "redis_response_template"
+        }
+    }
+
+    service {
+        name : "set_access_token"
+        request {
+            redis_cmd {
+                op : "setex"
+                arg : "'access_token'"
+                arg : "get($backend, 'fetch_access_token/ttl')"
+                arg : "get($backend, 'fetch_access_token/access_token')"
+            }
+        }
+        response {
+            include : "redis_response_template"
+        }
+    }
+
+    service {
+        name : "get_access_token"
+        request {
+            redis_cmd {
+                op : "get"
+                arg : "'access_token'"
+            }
+            redis_cmd {
+                op : "ttl"
+                arg : "'access_token'"
+            }
+        }
+        response {
+            output {
+                key : "access_token"
+                expr : "get($response, '/0/error') == 0 ? get($response, '/0/data') : null"
+            }
+            output {
+                key : "ttl"
+                expr : "get($response, '/1/error') == 0 ? get($response, '/1/data') : 0"
+            }
+        }
+    }
+}

@@ -1,0 +1,73 @@
+flow {
+    name : "get_access_token"
+    recall : "get_access_token"
+    if {
+        cond: "get($backend, 'get_access_token/ttl', 0) <= 60"
+        next : "fetch_access_token"
+    }
+    next : "get_session"
+}
+
+flow {
+    name : "fetch_access_token"
+    recall : "fetch_access_token"
+    if {
+        cond : "has($recall, 'fetch_access_token')"
+        next : "set_access_token"
+    }
+    next : "default"
+}
+
+flow {
+    name : "set_access_token"
+    recall : "set_access_token"
+    if {
+        cond : "get($backend, 'set_access_token/0/error') == 0"
+        next : "get_access_token"
+    }
+    next : "default"
+}
+
+flow {
+    name : "get_session"
+    recall : "get_session"
+    next : "recall_skill"
+}
+
+flow {
+    name : "recall_skill"
+@recall_skill
+
+    rank {
+        rule : "skill_rank"
+        top_k : 1
+    }
+
+    if {
+        cond : "len($rank) == 1"
+        output {
+            key : "skill"
+            expr : "get($rank, '0')"
+        }
+        output {
+            key : "value"
+            expr : "get($backend, get($rank, '0') + '/data')"
+        }
+        next : "set_session"
+    }
+
+    next : "default"
+}
+
+flow {
+    name : "set_session"
+    recall : "set_session"
+}
+
+flow {
+    name : "default"
+    output {
+        key : "value"
+        value : "抱歉，我不知道该怎么答复您。"
+    }
+}

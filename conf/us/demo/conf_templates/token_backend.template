@@ -1,0 +1,54 @@
+backend {
+    name : "token_backend"
+    server : "@unit_server"
+    protocol : "http"
+    connect_timeout_ms : 500
+    timeout_ms : 1000
+    max_retry : 1
+
+    service {
+        name : "fetch_access_token"
+        request {
+            http_method : "post"
+            http_uri : "/oauth/2.0/token"
+
+            http_header {
+                key : "Content-Type"
+                value : "application/json"
+            }
+
+            http_header {
+                key : "Host"
+                value : "@unit_host"
+            }
+
+            http_query {
+                key : "grant_type"
+                value : "client_credentials"
+            }
+
+            http_query {
+                key : "client_id"
+                # 替换为你的API Key
+                value : "@api_key"
+            }
+
+            http_query {
+                key : "client_secret"
+                # 替换为你的Secret Key
+                value : "@secret_key"
+            }
+        }
+
+        response {
+            output {
+                key : "ttl"
+                expr : "get($response, 'expires_in')"
+            }
+            output {
+                key : "access_token"
+                expr : "get($response, 'access_token')"
+            }
+        }
+    }
+}

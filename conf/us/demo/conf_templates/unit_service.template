@@ -1,0 +1,18 @@
+    service {
+        name : "@{skill}_@{sid}"
+        request {
+            def {
+                key : "bot_id"
+                value : "@sid"
+            }
+            include : "@{backend}_request_template"
+        }
+
+        response {
+            def {
+                key : "bot_id"
+                value : "@sid"
+            }
+            include : "@{backend}_response_template"
+        }
+    }

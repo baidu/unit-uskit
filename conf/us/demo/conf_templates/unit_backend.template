@@ -1,0 +1,157 @@
+backend {
+    name : "@{backend}_backend"
+    # 将server修改为你的服务器地址
+    server : "@server"
+    protocol : "http"
+    connect_timeout_ms : 500
+    timeout_ms : 3000
+    max_retry : 1
+
+    request_template {
+        name : "@{backend}_request_template"
+
+        http_method : "post"
+        http_uri : "@url"
+
+        http_header {
+            key : "Content-Type"
+            value : "application/json"
+        }
+
+        http_header {
+            key : "Host"
+            value : "@host"
+        }
+
+        http_query {
+            key : "access_token"
+            expr : "get($backend, 'get_access_token/access_token')"
+        }
+
+        def {
+            key : "client_session"
+            expr : "{'client_results' : '', 'candidate_options' : []}"
+        }
+
+        http_body {
+            key : "log_id"
+            expr : "get($request, 'logid')"
+        }
+
+        http_body {
+            key : "version"
+            value : "2.0"
+        }
+
+        http_body {
+            key : "request/user_id"
+            expr : "get($request, 'uuid')"
+        }
+
+        http_body {
+            key : "request/query_info/asr_candidates"
+            expr : "[]"
+        }
+
+        http_body {
+            key : "request/query_info/type"
+            value : "TEXT"
+        }
+
+        http_body {
+            key : "request/query_info/source"
+            value : "KEYBOARD"
+        }
+
+        http_body {
+            key : "request/bernard_level"
+            expr : "0"
+        }
+
+        http_body {
+            key : "request/updates"
+            value : ""
+        }
+
+        http_body {
+            key : "request/query"
+            expr : "get($request, 'query')"
+        }
+
+        http_body {
+            key : "request/client_session"
+            expr : "json_encode($client_session)"
+        }
+
+        http_body {
+            key : "bot_session"
+            expr : "get($backend, 'get_session/bot_id') == $bot_id ? get($backend, 'get_session/bot_session') : ''"
+        }
+
+        http_body {
+            key : "bot_id"
+            expr : "$bot_id"
+        }
+    }
+
+    response_template {
+        name : "@{backend}_response_template"
+        
+        if {
+            cond : "get($response, 'error_code') == 0"
+            cond : "get($response, 'result/response/action_list/0/type') == 'event'"
+
+            def {
+                key : "custom_reply"
+                expr : "json_decode(get($response, 'result/response/action_list/0/custom_reply'))"
+            }
+
+            def {
+                key : "custom_result"
+                expr : "json_decode(get($custom_reply, 'result'))"
+            }
+
+            output {
+                key : "data"
+                expr : "get($custom_result, 'result/0/value')"
+            }
+
+            output {
+                key : "session/bot_session"
+                expr : "get($response, 'result/bot_session', '')"
+            }
+
+            output {
+                key : "session/bot_id"
+                expr : "$bot_id"
+            }
+        }
+
+        if {
+            cond : "get($response, 'error_code') == 0"
+            cond : "get($response, 'result/response/action_list/0/type') != 'failure'"
+
+            def {
+                key : "say"
+                expr : "get($response, 'result/response/action_list/0/say')"
+            }
+
+            output {
+                key : "data"
+                expr : "$say"
+            }
+
+            output {
+                key : "session/bot_session"
+                expr : "get($response, 'result/bot_session', '')"
+            }
+
+            output {
+                key : "session/bot_id"
+                expr : "$bot_id"
+            }
+        }
+    }
+
+@service_conf
+}

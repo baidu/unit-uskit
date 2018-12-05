@@ -1,0 +1,14 @@
+syntax="proto2";
+package uskit;
+
+option cc_generic_services = true;
+
+message HttpRequest {
+}
+
+message HttpResponse {
+}
+
+service UnifiedSchedulerService {
+    rpc run(HttpRequest) returns (HttpResponse);
+}

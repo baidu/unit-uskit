@@ -1,0 +1,116 @@
+syntax="proto2";
+package uskit;
+
+message KVE {
+    required string key = 1;
+    optional string value = 2;
+    optional string expr = 3;
+}
+
+message RequestConfig {
+    optional string name = 1;
+    optional string include = 2;
+    repeated KVE def = 3;
+
+    // HTTP
+    optional string http_method = 4;
+    optional string http_uri = 5;
+    repeated KVE http_header = 6;
+    repeated KVE http_query = 7;
+    repeated KVE http_body = 8;
+    // Redis
+    message RedisCommandConfig {
+        required string op = 1;
+        repeated string arg = 2;
+    }
+    repeated RedisCommandConfig redis_cmd = 9;
+}
+
+message ResponseConfig {
+    message IfConfig {
+        repeated string cond = 1;
+        repeated KVE def = 2;
+        repeated KVE output = 3;
+    }
+
+    optional string name = 1;
+    optional string include = 2;
+    repeated KVE def = 3;
+    repeated IfConfig if = 4;
+    repeated KVE output = 5;
+}
+
+message ServiceConfig {
+    required string name = 1;
+    optional string request_policy = 2 [default="default"];
+    optional string response_policy = 3 [default="default"];
+    optional RequestConfig request = 4;
+    optional ResponseConfig response = 5;
+}
+
+message BackendConfig {
+    required string name = 1;
+    optional string server = 2;
+    optional string protocol = 3;
+    optional string connection_type = 4;
+    optional string load_balancer = 5;
+    optional int32 connect_timeout_ms = 6;
+    optional int32 timeout_ms = 7;
+    optional int32 max_retry = 8;
+
+    repeated RequestConfig request_template = 9;
+    repeated ResponseConfig response_template = 10;
+
+    repeated ServiceConfig service = 11;
+}
+
+message BackendEngineConfig {
+    repeated BackendConfig backend = 1;
+}
+
+message RankNodeConfig {
+    message SortByConfig {
+        required string expr = 1;
+        optional int32 desc = 2 [default=1];
+    }
+    required string name = 1;
+    optional string rank_policy = 2 [default="default"];
+    repeated string order = 3;
+    repeated SortByConfig sort_by = 4;
+}
+
+message RankEngineConfig {
+    repeated RankNodeConfig rank = 1;
+}
+
+message FlowNodeConfig {
+    message IfConfig {
+        repeated string cond = 1;
+        repeated KVE def = 2;
+        repeated KVE output = 3;
+        optional string next = 4;
+    }
+    message RankConfig {
+        required string rule = 1;
+        optional string input = 2 [default="$recall"];
+        optional uint32 top_k = 3 [default=1];
+    }
+    required string name = 1;
+    repeated KVE def = 2;
+    repeated string recall = 3;
+    optional string recall_expr = 9;
+    repeated RankConfig rank = 4;
+    repeated IfConfig if = 5;
+    repeated KVE output = 6;
+    optional string next = 8;
+}
+
+message FlowEngineConfig {
+    repeated FlowNodeConfig flow = 1;
+    optional string flow_policy = 2 [default="default"];
+}
+
+message UnifiedSchedulerConfig {
+    optional string root_dir = 1 [default="./conf/us"];
+    repeated string load = 2;
+}
