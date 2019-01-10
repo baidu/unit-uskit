@@ -24,8 +24,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     include_directories(/usr/local/opt/flex/include) # Homebrew flex
 endif()
 
+
 BISON_TARGET(EXPR_PARSER src/expression/parser.yy ${CMAKE_CURRENT_BINARY_DIR}/parser.cpp
-             DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
+             COMPILE_FLAGS "--defines=${CMAKE_CURRENT_BINARY_DIR}/parser.h")
 FLEX_TARGET(EXPR_LEXER src/expression/lexer.ll ${CMAKE_CURRENT_BINARY_DIR}/lexer.cpp)
 
 find_path(BRPC_INCLUDE_PATH NAMES brpc/server.h)
