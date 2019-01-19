@@ -22,9 +22,9 @@ if [ $OS = mac ]; then
     brew install openssl git gnu-getopt gflags protobuf leveldb cmake flex bison
 elif [ $OS = ubuntu ]; then
     echo "Installing dependencies for Ubuntu..."
-    sudo apt-get install git g++ make libssl-dev
-    sudo apt-get install coreutils libgflags-dev libprotobuf-dev libprotoc-dev protobuf-compiler libleveldb-dev libsnappy-dev
-    sudo apt-get install flex bison
+    sudo apt-get install -y git g++ make libssl-dev
+    sudo apt-get install -y coreutils libgflags-dev libprotobuf-dev libprotoc-dev protobuf-compiler libleveldb-dev libsnappy-dev
+    sudo apt-get install -y flex bison
 elif [ $OS = centos ]; then
     echo "Installing dependencies for CentOS..."
     sudo yum install epel-release

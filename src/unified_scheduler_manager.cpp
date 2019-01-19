@@ -93,7 +93,11 @@ int UnifiedSchedulerManager::parse_request(brpc::Controller* cntl, USRequest& re
             send_response(cntl, nullptr, ErrorCode::MISSING_PARAM, 
                     ErrorMessage.at(ErrorCode::MISSING_PARAM) + ": " + param);
             return -1;
-        }
+        } else if (!request[param.c_str()].IsString()) {
+            send_response(cntl, nullptr, ErrorCode::INVALID_JSON,
+                    ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param);
+            return -1;
+        }        
         std::string value = request[param.c_str()].GetString();
         if (param == "logid") {
             // Setup logid of this request.
