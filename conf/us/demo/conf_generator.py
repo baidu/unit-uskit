@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-US Kit Conf generator
+USKit Conf generator
 """
 from __future__ import print_function
 from string import Template
@@ -47,7 +47,7 @@ def generate_redis_backend_conf(fout):
 
 def generate_dmkit_backend(fout):
     """
-    Generate DM Kit backend
+    Generate DMKit backend
     """
     with open('./conf_templates/unit_backend.template') as backend_fin, \
          open('./conf_templates/unit_service.template') as service_fin:
