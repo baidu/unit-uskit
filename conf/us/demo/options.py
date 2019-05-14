@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Options for generating conf of US Kit
+Options for generating conf of USKit
 """
 options = {
     # server address
