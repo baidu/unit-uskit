@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <brpc/server.h>
+#include "brpc.h"
 #include "unified_scheduler_manager.h"
 #include "utils.h"
 #include "global.h"
@@ -20,20 +20,18 @@
 
 namespace uskit {
 
-UnifiedSchedulerManager::UnifiedSchedulerManager() {
-}
+UnifiedSchedulerManager::UnifiedSchedulerManager() {}
 
-UnifiedSchedulerManager::~UnifiedSchedulerManager() {
-}
+UnifiedSchedulerManager::~UnifiedSchedulerManager() {}
 
-int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig &config) {
+int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig& config) {
     // Register global functions and policies
     register_function();
     register_policy();
 
     // Load unified schedulers that are specified in configuration.
     for (int i = 0; i < config.load_size(); ++i) {
-        const std::string &usid = config.load(i);
+        const std::string& usid = config.load(i);
         UnifiedScheduler us;
         if (us.init(config.root_dir(), usid) != 0) {
             LOG(ERROR) << "Failed to init app [" << usid << "]";
@@ -45,7 +43,7 @@ int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig &config) {
     return 0;
 }
 
-int UnifiedSchedulerManager::run(brpc::Controller* cntl) {
+int UnifiedSchedulerManager::run(BRPC_NAMESPACE::Controller* cntl) {
     Timer parse_request_tm("parse_request_t_ms");
     parse_request_tm.start();
 
@@ -77,7 +75,7 @@ int UnifiedSchedulerManager::run(brpc::Controller* cntl) {
     return 0;
 }
 
-int UnifiedSchedulerManager::parse_request(brpc::Controller* cntl, USRequest& request) {
+int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USRequest& request) {
     std::string request_json = cntl->request_attachment().to_string();
     // Parse request parameters from JSON.
     if (request.Parse(request_json.c_str()).HasParseError() || !request.IsObject()) {
@@ -86,12 +84,23 @@ int UnifiedSchedulerManager::parse_request(brpc::Controller* cntl, USRequest& re
     }
 
     // Check required parameters
-    UnifiedSchedulerThreadData* td = static_cast<UnifiedSchedulerThreadData*>(brpc::thread_local_data());
+    UnifiedSchedulerThreadData* td =
+            static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
     std::vector<std::string> required_params = {"logid", "uuid", "usid", "query"};
-    for (auto & param : required_params) {
+    for (auto& param : required_params) {
         if (!request.HasMember(param.c_str())) {
-            send_response(cntl, nullptr, ErrorCode::MISSING_PARAM, 
+            send_response(
+                    cntl,
+                    nullptr,
+                    ErrorCode::MISSING_PARAM,
                     ErrorMessage.at(ErrorCode::MISSING_PARAM) + ": " + param);
+            return -1;
+        } else if (!request[param.c_str()].IsString()) {
+            send_response(
+                    cntl,
+                    nullptr,
+                    ErrorCode::INVALID_JSON,
+                    ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param);
             return -1;
         } else if (!request[param.c_str()].IsString()) {
             send_response(cntl, nullptr, ErrorCode::INVALID_JSON,
@@ -110,8 +119,11 @@ int UnifiedSchedulerManager::parse_request(brpc::Controller* cntl, USRequest& re
     return 0;
 }
 
-int UnifiedSchedulerManager::send_response(brpc::Controller* cntl, USResponse* response,
-                                    ErrorCode error_code, const std::string& error_msg) {
+int UnifiedSchedulerManager::send_response(
+        BRPC_NAMESPACE::Controller* cntl,
+        USResponse* response,
+        ErrorCode error_code,
+        const std::string& error_msg) {
     cntl->http_response().set_content_type("application/json;charset=UTF-8");
     int http_status_code = 200;
     if (error_code != 0) {
@@ -122,15 +134,29 @@ int UnifiedSchedulerManager::send_response(brpc::Controller* cntl, USResponse* r
 
     rapidjson::Document final_response;
     final_response.SetObject();
-    rapidjson::Document::AllocatorType& allocator =
-        final_response.GetAllocator();
-
-    final_response.AddMember("error_code", error_code, allocator);
+    rapidjson::Document::AllocatorType& allocator = final_response.GetAllocator();
+    if (response != nullptr && response->HasMember("error_code")) {
+        if ((*response)["error_code"].IsString()) {
+            final_response.AddMember(
+                    "error_code", std::atoi((*response)["error_code"].GetString()), allocator);
+        } else if ((*response)["error_code"].IsInt()) {
+            final_response.AddMember("error_code", (*response)["error_code"].GetInt(), allocator);
+        } else {
+            final_response.AddMember("error_code", error_code, allocator);
+        }
+    } else {
+        final_response.AddMember("error_code", error_code, allocator);
+    }
 
     rapidjson::Value error_msg_value;
-    if (error_msg.empty()) {
-        error_msg_value.SetString(ErrorMessage.at(error_code).c_str(),
-                ErrorMessage.at(error_code).length(), allocator);
+    if (response != nullptr && response->HasMember("error_msg") &&
+        (*response)["error_msg"].IsString()) {
+        error_msg_value.SetString((*response)["error_msg"].GetString(), allocator);
+    } else if (error_msg.empty()) {
+        error_msg_value.SetString(
+                ErrorMessage.at(error_code).c_str(),
+                ErrorMessage.at(error_code).length(),
+                allocator);
     } else {
         error_msg_value.SetString(error_msg.c_str(), error_msg.length(), allocator);
     }
@@ -146,4 +172,4 @@ int UnifiedSchedulerManager::send_response(brpc::Controller* cntl, USResponse* r
     return 0;
 }
 
-} // namespace uskit
+}  // namespace uskit

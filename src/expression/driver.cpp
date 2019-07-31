@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <fstream>
-#include <butil/logging.h>
+#include "butil.h"
 #include "expression/driver.h"
 
 namespace uskit {

@@ -13,19 +13,17 @@
 // limitations under the License.
 
 #include "backend.h"
-#include <butil/logging.h>
+#include "butil.h"
 
 namespace uskit {
 
-Backend::Backend() : _channel(new brpc::Channel) {
-}
+Backend::Backend() : _channel(new BRPC_NAMESPACE::Channel) {}
 
-Backend::~Backend() {
-}
+Backend::~Backend() {}
 
 int Backend::init(const BackendConfig& config) {
     // Setup backend channel options
-    brpc::ChannelOptions options;
+    BRPC_NAMESPACE::ChannelOptions options;
     const std::string& protocol = config.protocol();
     options.protocol = protocol;
     if (config.has_connection_type()) {
@@ -44,11 +42,11 @@ int Backend::init(const BackendConfig& config) {
     if (config.has_load_balancer()) {
         load_balancer = config.load_balancer();
     }
+    _is_dynamic = config.is_dynamic();
 
     // Initialize backend channel
     if (_channel->Init(config.server().c_str(), load_balancer.c_str(), &options) != 0) {
-        LOG(ERROR) << "Failed to initialize channel of backend ["
-                   << config.name() << "]";
+        LOG(ERROR) << "Failed to initialize channel of backend [" << config.name() << "]";
         return -1;
     }
 
@@ -56,8 +54,10 @@ int Backend::init(const BackendConfig& config) {
     for (int i = 0; i < config.request_template_size(); ++i) {
         const RequestConfig& request_template = config.request_template(i);
         std::unique_ptr<BackendRequestConfig> request_config;
-        if (protocol == "http") {
+        if (protocol == "http" && !_is_dynamic) {
             request_config.reset(new HttpRequestConfig);
+        } else if (protocol == "http" && _is_dynamic) {
+            request_config.reset(new DynamicHttpRequestConfig);
         } else if (protocol == "redis") {
             request_config.reset(new RedisRequestConfig);
         } else {
@@ -65,13 +65,11 @@ int Backend::init(const BackendConfig& config) {
             return -1;
         }
         if (request_config->init(request_template) != 0) {
-            LOG(ERROR) << "Failed to parse request config template ["
-                       << request_template.name() << "] of backend ["
-                       << config.name() << "]";
+            LOG(ERROR) << "Failed to parse request config template [" << request_template.name()
+                       << "] of backend [" << config.name() << "]";
             return -1;
         }
-        _request_config_template_map.emplace(request_template.name(),
-                                             std::move(request_config));
+        _request_config_template_map.emplace(request_template.name(), std::move(request_config));
     }
 
     // Initialize response config template
@@ -79,13 +77,11 @@ int Backend::init(const BackendConfig& config) {
         const ResponseConfig& response_template = config.response_template(j);
         BackendResponseConfig response_config;
         if (response_config.init(response_template) != 0) {
-            LOG(ERROR) << "Failed to parse response config template ["
-                       << response_template.name() << "] of backend ["
-                       << config.name() << "]";
+            LOG(ERROR) << "Failed to parse response config template [" << response_template.name()
+                       << "] of backend [" << config.name() << "]";
             return -1;
         }
-        _response_config_template_map.emplace(response_template.name(),
-                                              std::move(response_config));
+        _response_config_template_map.emplace(response_template.name(), std::move(response_config));
     }
 
     // Collect service names
@@ -96,12 +92,16 @@ int Backend::init(const BackendConfig& config) {
     return 0;
 }
 
-brpc::Channel* Backend::channel() const {
+BRPC_NAMESPACE::Channel* Backend::channel() const {
     return _channel.get();
 }
 
-const brpc::AdaptiveProtocolType Backend::protocol() const {
-    const brpc::AdaptiveProtocolType protocol = _channel->options().protocol;
+const bool Backend::is_dynamic() const {
+    return _is_dynamic;
+}
+
+const BRPC_NAMESPACE::AdaptiveProtocolType Backend::protocol() const {
+    const BRPC_NAMESPACE::AdaptiveProtocolType protocol = _channel->options().protocol;
     return protocol;
 }
 
@@ -125,4 +125,4 @@ const std::vector<std::string>& Backend::services() const {
     return _services;
 }
 
-} // namespace uskit
+}  // namespace uskit

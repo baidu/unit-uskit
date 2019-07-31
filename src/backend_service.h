@@ -20,11 +20,11 @@
 #include "backend.h"
 #include "policy/backend_policy.h"
 
-namespace uskit
-{
+namespace uskit {
 
 // Forward declaration
 class BackendController;
+class RankEngine;
 
 // A backend service represents an RPC specification, which can be used by backend
 // controller to issue RPC.
@@ -41,6 +41,12 @@ public:
     // Build request for RPC
     // Returns 0 on success, -1 otherwise.
     int build_request(BackendController* cntl) const;
+
+    int build_request(
+            const BackendEngine* backend_engine,
+            BackendController* cntl,
+            const std::unordered_map<std::string, FlowConfig>* flow_map,
+            const RankEngine* rank_engine) const;
     // Parse response received from RPC
     // Returns 0 on success, -1 otherwise.
     int parse_response(BackendController* cntl) const;
@@ -48,13 +54,17 @@ public:
     const std::string& name() const;
     // Obtain the protocol associated with this service.
     // Currently supported protocols: HTTP, Redis.
-    const brpc::AdaptiveProtocolType protocol() const;
+    const BRPC_NAMESPACE::AdaptiveProtocolType protocol() const;
+
+    const bool is_dynamic() const;
 
 private:
     // Name of this service
     std::string _name;
     // Backend that this service belongs to
     Backend* _backend;
+    // Dynamic requests FLAG
+    bool _is_dynamic;
 
     // Policy for building backend request
     std::unique_ptr<policy::BackendRequestPolicy> _request_policy;
@@ -62,6 +72,6 @@ private:
     std::unique_ptr<policy::BackendResponsePolicy> _response_policy;
 };
 
-} // namespace uskit
+}  // namespace uskit
 
-#endif // USKIT_BACKEND_SERVICE_H
+#endif  // USKIT_BACKEND_SERVICE_H

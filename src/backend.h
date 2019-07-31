@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <brpc/channel.h>
+#include "brpc.h"
 #include "dynamic_config.h"
 
 namespace uskit {
@@ -39,10 +39,10 @@ public:
     int init(const BackendConfig& config);
 
     // Obtain the channel associated with this backend.
-    brpc::Channel* channel() const;
+    BRPC_NAMESPACE::Channel* channel() const;
     // Obtain the protocol associated with this backend.
     // Currently supported protocols: HTTP, Redis.
-    const brpc::AdaptiveProtocolType protocol() const;
+    const BRPC_NAMESPACE::AdaptiveProtocolType protocol() const;
     // Obtain a request config template with given name.
     // Returns nullptr if not found.
     const BackendRequestConfig* request_config(const std::string& name) const;
@@ -51,20 +51,23 @@ public:
     const BackendResponseConfig* response_config(const std::string& name) const;
     // Obtain all service names associated with this backend.
     const std::vector<std::string>& services() const;
+    const bool is_dynamic() const;
 
 private:
     // Underlying Channel
-    std::unique_ptr<brpc::Channel> _channel;
+    std::unique_ptr<BRPC_NAMESPACE::Channel> _channel;
     // Backend services
     std::vector<std::string> _services;
+    // Dynamic requests FLAG, default is false
+    bool _is_dynamic;
 
     // Request config templates
-    std::unordered_map<std::string, std::unique_ptr<BackendRequestConfig>> _request_config_template_map;
+    std::unordered_map<std::string, std::unique_ptr<BackendRequestConfig>>
+            _request_config_template_map;
     // Response config templates
     std::unordered_map<std::string, BackendResponseConfig> _response_config_template_map;
 };
 
+}  // namespace uskit
 
-} // namespace uskit
-
-#endif // USKIT_BACKEND_H
+#endif  // USKIT_BACKEND_H

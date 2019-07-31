@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <gflags/gflags.h>
-#include <brpc/server.h>
+#include "brpc.h"
 #include "us.pb.h"
 #include "config.pb.h"
 #include "thread_data.h"
@@ -26,6 +26,7 @@ DEFINE_int32(idle_timeout_s, -1, "Connection will be closed if there is no "
              "read/write operations during the last `idle_timeout_s'");
 DEFINE_string(us_conf, "./conf/us.conf", "Path of unified scheduler configuration file");
 DEFINE_string(url_path, "/us", "URL path of unified scheduler service");
+DEFINE_bool(log_to_file, false, "Log to file");
 
 namespace uskit
 {
@@ -39,10 +40,10 @@ public:
                      google::protobuf::Closure* done) {
         // This object helps you to call done->Run() in RAII style. If you need
         // to process the request asynchronously, pass done_guard.release().
-        brpc::ClosureGuard done_guard(done);
+        BRPC_NAMESPACE::ClosureGuard done_guard(done);
 
-        brpc::Controller* cntl =
-            static_cast<brpc::Controller*>(cntl_base);
+        BRPC_NAMESPACE::Controller* cntl =
+            static_cast<BRPC_NAMESPACE::Controller*>(cntl_base);
 
         Timer total_tm("total_t_ms");
         total_tm.start();
@@ -53,7 +54,7 @@ public:
 
         total_tm.stop();
 
-        UnifiedSchedulerThreadData* td = static_cast<UnifiedSchedulerThreadData*>(brpc::thread_local_data());
+        UnifiedSchedulerThreadData* td = static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
         US_LOG(NOTICE) << td->get_log();
         td->reset();
     }
@@ -90,14 +91,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Generally you only need one Server.
-    brpc::Server server;
+    BRPC_NAMESPACE::Server server;
 
     // Add the service into server. Notice the second parameter, because the
     // service is put on stack, we don't want server to delete it, otherwise
-    // use brpc::SERVER_OWNS_SERVICE.
+    // use BRPC_NAMESPACE::SERVER_OWNS_SERVICE.
     std::string url_path = FLAGS_url_path + " => run";
     if (server.AddService(&us_service, 
-                          brpc::SERVER_DOESNT_OWN_SERVICE,
+                          BRPC_NAMESPACE::SERVER_DOESNT_OWN_SERVICE,
                           url_path) != 0) {
         LOG(ERROR) << "Failed to add unified scheduler service";
         return -1;
@@ -107,7 +108,7 @@ int main(int argc, char *argv[]) {
     uskit::UnifiedSchedulerThreadDataFactory thread_data_factory;
 
     // Start the server.
-    brpc::ServerOptions options;
+    BRPC_NAMESPACE::ServerOptions options;
     options.idle_timeout_sec = FLAGS_idle_timeout_s;
     options.thread_local_data_factory = &thread_data_factory;
     if (server.Start(FLAGS_port, &options) != 0) {

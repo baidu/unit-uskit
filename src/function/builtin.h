@@ -22,12 +22,32 @@ namespace function {
 
 // Notice: Read docs/expression.md for detailed documentation.
 
-// Set JSON value by Unix-like path.
+// Get JSON value by Unix-like path.
 int get_value_by_path(rapidjson::Value& args, rapidjson::Document& return_value);
+// Set JSON value by Unix-like path.
+int set_value_by_path(rapidjson::Value& args, rapidjson::Document& return_value);
+// Get index of an element in an Array.
+int get_index_by_key(rapidjson::Value& args, rapidjson::Document& return_value);
+// Make a new array from source and assign the path with array element.
+int for_each_set_by_path(rapidjson::Value& args, rapidjson::Document& return_value);
+// Make a new array from source by path according to each element.
+int for_each_get_by_path(rapidjson::Value& args, rapidjson::Document& return_value);
+// replace value by translate dict on the path
+int replace_value_by_path_and_dict(rapidjson::Value& args, rapidjson::Document& return_value);
+// iterate array elements on another value-based function
+int array_func(rapidjson::Value& args, rapidjson::Document& return_value);
+// check whether string contain another string
+int string_contain(rapidjson::Value& args, rapidjson::Document& return_value);
+// get substring of args[0]
+int get_sub_str(rapidjson::Value& args, rapidjson::Document& return_value);
+// nomarlized element at path of array
+int normalized(rapidjson::Value& args, rapidjson::Document& return_value);
 // Serialize JSON object to string.
 int json_encode(rapidjson::Value& args, rapidjson::Document& return_value);
 // Deserialize JSON object from string.
 int json_decode(rapidjson::Value& args, rapidjson::Document& return_value);
+// Replace string with string
+int replace_all(rapidjson::Value& args, rapidjson::Document& return_value);
 // Test whether a key exists in a JSON object/array.
 int has_key(rapidjson::Value& args, rapidjson::Document& return_value);
 // Get array length.
