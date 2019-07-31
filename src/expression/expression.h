@@ -21,6 +21,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <rapidjson/document.h>
+#include <mutex>
+#include <thread>
 
 namespace uskit {
 namespace expression {
@@ -29,8 +31,7 @@ namespace expression {
 class ExpressionContext {
 public:
     ExpressionContext(const std::string& name);
-    ExpressionContext(const std::string& name,
-                      rapidjson::Document::AllocatorType& allocator);
+    ExpressionContext(const std::string& name, rapidjson::Document::AllocatorType& allocator);
     ExpressionContext(const std::string& name, ExpressionContext& parent);
 
     void set_variable(rapidjson::Value& key, rapidjson::Value& value);
@@ -48,11 +49,13 @@ public:
     ExpressionContext* parent();
     // Get serialized JSON string of this context.
     std::string str();
-    
+    std::mutex _outer_mutex;
+
 private:
     std::string _name;
     rapidjson::Document _variables;
     ExpressionContext* _parent;
+    std::mutex _mutex;
 
     const static std::unordered_set<std::string> _keywords;
 };
@@ -71,6 +74,7 @@ public:
     Program(Expression* expr);
     ~Program();
     std::unique_ptr<Expression> get_expression();
+
 private:
     std::unique_ptr<Expression> _expr;
 };
@@ -89,6 +93,7 @@ public:
     Integer(int value);
     ~Integer();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     int _value;
 };
@@ -99,6 +104,7 @@ public:
     Double(double value);
     ~Double();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     double _value;
 };
@@ -109,6 +115,7 @@ public:
     String(const std::string& str);
     ~String();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::string _str;
 };
@@ -119,6 +126,7 @@ public:
     Boolean(bool value);
     ~Boolean();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     bool _value;
 };
@@ -129,6 +137,7 @@ public:
     Array(std::vector<Expression*>& array);
     ~Array();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::vector<std::unique_ptr<Expression>> _array;
 };
@@ -142,6 +151,7 @@ public:
     Dict(KeyValueMap& dict);
     ~Dict();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::unordered_map<std::string, std::unique_ptr<Expression>> _dict;
 };
@@ -152,6 +162,7 @@ public:
     BinaryExpression(const std::string& op, Expression* lhs, Expression* rhs);
     ~BinaryExpression();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::string _op;
     std::unique_ptr<Expression> _lhs;
@@ -164,6 +175,7 @@ public:
     TernaryExpression(Expression* cond, Expression* lhs, Expression* rhs);
     ~TernaryExpression();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::unique_ptr<Expression> _cond;
     std::unique_ptr<Expression> _lhs;
@@ -176,6 +188,7 @@ public:
     NotExpression(Expression* expr);
     ~NotExpression();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::unique_ptr<Expression> _expr;
 };
@@ -186,6 +199,7 @@ public:
     CallExpression(const std::string& func_name, std::vector<Expression*>& args);
     ~CallExpression();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::string _func_name;
     std::vector<std::unique_ptr<Expression>> _args;
@@ -197,11 +211,12 @@ public:
     VariableExpression(const std::string& name);
     ~VariableExpression();
     int run(ExpressionContext& context, rapidjson::Value& value);
+
 private:
     std::string _name;
 };
 
-} // namespace expression
-} // namespace uskit
+}  // namespace expression
+}  // namespace uskit
 
-#endif // USKIT_EXPRESSION_H
+#endif  // USKIT_EXPRESSION_H

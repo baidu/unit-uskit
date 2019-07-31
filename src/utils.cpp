@@ -17,83 +17,118 @@
 #include "utils.h"
 #include "thread_data.h"
 #include "common.h"
+#include <iconv.h>
 
-namespace uskit {
+namespace uskit
+{
 
-std::string json_encode(const rapidjson::Value& json) {
+std::string json_encode(const rapidjson::Value &json)
+{
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     return buffer.GetString();
 }
 
-int json_set_value_by_path(const std::string& path,
-                           rapidjson::Document& doc,
-                           rapidjson::Value& value) {
+int json_set_value_by_path(const std::string &path,
+                           rapidjson::Document &doc,
+                           rapidjson::Value &value)
+{
     std::string norm_path(path);
     // Path normalization.
-    if (norm_path[0] != '/') {
+    if (norm_path[0] != '/')
+    {
         norm_path = "/" + norm_path;
     }
     // Root path.
-    if (norm_path == "/") {
+    if (norm_path == "/")
+    {
         norm_path = "";
     }
     rapidjson::Pointer pointer(norm_path.c_str());
     pointer.Set(doc, value);
 
-    if (pointer.IsValid()) {
+    if (pointer.IsValid())
+    {
         return 0;
-    } else {
+    }
+    else
+    {
         US_LOG(ERROR) << "Set value by path failed, error_code: " << pointer.GetParseErrorCode();
         return -1;
     }
 }
 
-std::string get_value_type(const rapidjson::Value& value) {
-    if (value.IsNull()) {
+std::string get_value_type(const rapidjson::Value &value)
+{
+    if (value.IsNull())
+    {
         return "null";
-    } else if (value.IsBool()) {
+    }
+    else if (value.IsBool())
+    {
         return "bool";
-    } else if (value.IsInt()) {
+    }
+    else if (value.IsInt())
+    {
         return "int";
-    } else if (value.IsDouble()) {
+    }
+    else if (value.IsDouble())
+    {
         return "double";
-    } else if (value.IsString()) {
+    }
+    else if (value.IsString())
+    {
         return "string";
-    } else if (value.IsArray()) {
+    }
+    else if (value.IsArray())
+    {
         return "array";
-    } else if (value.IsObject()) {
+    }
+    else if (value.IsObject())
+    {
         return "obj";
-    } else {
+    }
+    else
+    {
         // Never happen.
         return "unknown";
     }
 }
 
-int merge_json_objects(rapidjson::Value& to, const rapidjson::Value& from,
-                       rapidjson::Document::AllocatorType& allocator) {
-    if (!to.IsObject() || !from.IsObject()) {
+int merge_json_objects(rapidjson::Value &to, const rapidjson::Value &from,
+                       rapidjson::Document::AllocatorType &allocator)
+{
+    if (!to.IsObject() || !from.IsObject())
+    {
         US_LOG(ERROR) << "`merge_json_objects' requires arguments to be objects";
         return -1;
     }
 
-    for (auto & m : from.GetObject()) {
+    for (auto &m : from.GetObject())
+    {
         rapidjson::Value key(m.name, allocator);
         rapidjson::Value value(m.value, allocator);
-        if (to.HasMember(key)) {
+        if (to.HasMember(key))
+        {
             // Same key exists in `from` and `to`.
             // Merge if both members are objects.
-            if (to[key].IsObject() && value.IsObject()) {
-                for (auto & n : value.GetObject()) {
+            if (to[key].IsObject() && value.IsObject())
+            {
+                for (auto &n : value.GetObject())
+                {
                     to[key].AddMember(n.name, n.value, allocator);
                 }
-            } else {
+            }
+            else
+            {
                 // Otherwise just replace.
                 to.EraseMember(key);
                 to.AddMember(key, value, allocator);
             }
-        } else {
+        }
+        else
+        {
             to.AddMember(key, value, allocator);
         }
     }
@@ -101,35 +136,55 @@ int merge_json_objects(rapidjson::Value& to, const rapidjson::Value& from,
     return 0;
 }
 
-int ReadProtoFromTextFile(const std::string &file_name, google::protobuf::Message* proto) {
-  int fd = open(file_name.c_str(), O_RDONLY);
-  if (fd == -1) {
-      LOG(ERROR) << "Failed to open file: " << file_name;
-      return -1;
-  }
-  google::protobuf::io::FileInputStream *input =
-      new google::protobuf::io::FileInputStream(fd);
-  bool success = google::protobuf::TextFormat::Parse(input, proto);
-  delete input;
-  close(fd);
-  if (success) {
-      return 0;
-  } else {
-      return -1;
-  }
+int ReadProtoFromTextFile(const std::string &file_name, google::protobuf::Message *proto)
+{
+    int fd = open(file_name.c_str(), O_RDONLY);
+    if (fd == -1)
+    {
+        LOG(ERROR) << "Failed to open file: " << file_name;
+        return -1;
+    }
+    google::protobuf::io::FileInputStream *input =
+        new google::protobuf::io::FileInputStream(fd);
+    bool success = google::protobuf::TextFormat::Parse(input, proto);
+    delete input;
+    close(fd);
+    if (success)
+    {
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
-Timer::Timer(const std::string& name) : _name(name) {}
+int replace_all(std::string &str, const std::string& from, const std::string& to) {
+    size_t start_pos = 0;
+    if (str.size() == 0) {
+        return 0;
+    }
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    return 0;
+}
 
-void Timer::start() {
+Timer::Timer(const std::string &name) : _name(name) {}
+
+void Timer::start()
+{
     _timer.start();
 }
 
-void Timer::stop() {
+void Timer::stop()
+{
     _timer.stop();
     // Obtain thread data.
-    UnifiedSchedulerThreadData* td = static_cast<UnifiedSchedulerThreadData*>(brpc::thread_local_data());
-    if (td != nullptr) {
+    UnifiedSchedulerThreadData *td = static_cast<UnifiedSchedulerThreadData *>(BRPC_NAMESPACE::thread_local_data());
+    if (td != nullptr)
+    {
         td->add_log_entry(_name, std::to_string(_timer.m_elapsed()));
     }
 }

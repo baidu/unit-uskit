@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include <brpc/server.h>
-#include <butil/strings/string_util.h>
+#include "brpc.h"
+#include "butil.h"
 
 namespace uskit
 {
@@ -60,7 +60,7 @@ private:
 };
 
 // Thread local data factory.
-class UnifiedSchedulerThreadDataFactory : public brpc::DataFactory {
+class UnifiedSchedulerThreadDataFactory : public BRPC_NAMESPACE::DataFactory {
 public:
     void* CreateData() const {
         return new UnifiedSchedulerThreadData;

@@ -38,15 +38,15 @@ public:
     int init(const UnifiedSchedulerConfig &config);
     // Process user request.
     // Returns 0 on success, -1 otherwise.
-    int run(brpc::Controller* cntl);
+    int run(BRPC_NAMESPACE::Controller* cntl);
 
 private:
     // Parse user request from HTTP POST body(JSON format).
     // Returns 0 on success, -1 otherwise.
-    int parse_request(brpc::Controller* cntl, USRequest& request);
+    int parse_request(BRPC_NAMESPACE::Controller* cntl, USRequest& request);
     // Assemble and send response(HTTP+JSON) back to user.
     // Returns 0 on success, -1 otherwise.
-    int send_response(brpc::Controller* cntl, USResponse* response,
+    int send_response(BRPC_NAMESPACE::Controller* cntl, USResponse* response,
                       ErrorCode error_code = ErrorCode::OK, const std::string& error_msg = "");
 
     std::unordered_map<std::string, UnifiedScheduler> _us_map;

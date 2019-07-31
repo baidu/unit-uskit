@@ -34,7 +34,7 @@ US Kit配置的灵活性在于配置项可以支持表达式运算，提供了�
 * $result：输出结果，对应于最终JSON结果中的result字段
 * $backend：保存了所有成功处理的后端远程调用的结果，比如可以通过`get($backend, 'get_session')`来获取名为get_session的远程服务调用结果
 
-### KVE配置
+### KVE 配置
 
 KVE用于定义变量名及其对应的取值，取值可以是直接字符串，也可以是表达式(取值为表达式的求值结果)。在`backend.conf`，`rank.conf`，`flow.conf`中均大量使用KVE配置定义配置项，理解该配置有助于后续3个配置文件的配置说明
 
@@ -90,17 +90,19 @@ backend {
             }
         }
         response {
-        	ensure : "get($response, 'errno') == 0"
-            output {
-                key : "result"
-                expr : "get($response, 'message')"
+            if {
+                cond : "get($response, 'errno') == 0"
+                output {
+                    key : "result"
+                    expr : "get($response, 'message')"
+                }
             }
         }
     }
 }
 ```
 
-#### backend配置
+#### backend 配置
 
 | 配置项             | 类型   | 必须 | 说明                                                         |
 | ------------------ | ------ | ---- | ------------------------------------------------------------ |
@@ -115,8 +117,9 @@ backend {
 | service*           | object | 是   | 该backend下面的service配置，具体参数参见service配置说明<br />backend配置可以包含多个service配置 |
 | request_template*  | object | 否   | 当同一个backend下的多个service共用同一个request策略时，可以在backend里定义request_template，并在service的request配置中进行引用，具体参数参见request配置说明<br />backend配置可以包含多个request_template配置 |
 | response_template* | object | 否   | 当同一个backend下的多个service共用同一个response策略时，可以在backend里定义response_template，并在service的responset配置中进行引用，具体参数参见response配置说明<br />backend配置可以包含多个response_template配置 |
+| is_dynamic | bool	| 否 | 默认为false。设置为true时service中配置的dynamic相关参数生效|
 
-#### service配置
+#### service 配置
 
 | 配置项          | 类型   | 必须 | 说明                                                         |
 | --------------- | ------ | ---- | ------------------------------------------------------------ |
@@ -125,8 +128,14 @@ backend {
 | request         | object | 否   | 该service的请求构造配置，当request_policy为`default`时有效，具体参数参见request配置说明 |
 | response_policy | string | 否   | 表示service的结果解析策略，默认为`default`，当默认结果解析策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
 | response        | object | 否   | 该service的请求构造配置，当response_policy为`default`时有效，具体参数参见response配置说明 |
+|dynamic_args_node |string | 否 |动态参数对request进行修改的参数类型，现在支持："uri", "query", "body", 分别对应修改 “http_uri", "http_query", "http_body"|
+|dynamic_args*|KVE | 否 | key 为动态输入修改的参数类型中的 path（仅在dynamic_args_node 为 query 和 uri 时生效，body 时忽略），expr 解析后应得到一个数组|
+|dynamic_args_path|string | 否 |修改http_body中的参数时，需要使用dynamic_args_path指定修改节点路径（支持UNIX-Like path）|
 
-#### request配置
+注1:
+* 动态模式下（backend 配置 is_dynamic 为 true），dynamic_args_node 和 dynamic_args 为必须参数。
+
+#### request 配置
 
 | 配置项       | 类型     | 必须 | 说明                                                         |
 | ------------ | -------- | ---- | ------------------------------------------------------------ |
@@ -142,14 +151,14 @@ backend {
 
 注：每个request配置会生成一个局部作用域
 
-#### redis_cmd配置
+#### redis_cmd 配置
 
 | 配置项 | 类型   | 必须 | 说明                                                         |
 | ------ | ------ | ---- | ------------------------------------------------------------ |
 | op     | string | 是   | Redis命令的名称，比如get，set等                              |
 | arg*   | string | 否   | 与Redis命令op对应的参数，每个arg是一个表达式，执行Redis命令时使用arg的表达式执行结果。redis_cmd配置中可以包含多个arg |
 
-#### response配置
+#### response 配置
 
 | 配置项  | 类型   | 必须 | 说明                                                         |
 | ------- | ------ | ---- | ------------------------------------------------------------ |
@@ -163,7 +172,7 @@ backend {
 
 注2：每个response配置会生成一个局部作用域
 
-##### response if配置项说明
+##### response if 配置项说明
 
 | 配置项 | 类型     | 必须 | 说明                                                         |
 | ------ | -------- | ---- | ------------------------------------------------------------ |
@@ -195,7 +204,7 @@ rank {
 }
 ```
 
-#### rank规则配置
+#### rank 规则配置
 
 | 配置项      | 类型   | 必须 | 说明                                                         |
 | ----------- | ------ | ---- | ------------------------------------------------------------ |
@@ -204,7 +213,7 @@ rank {
 | order*      | string | 否   | 技能之间的优先级顺序定义，支持定义多个order，按照定义从上到下的顺序，技能优先级逐步下降；每个order支持通过逗号(,)定义多个同等优先级的技能，该配置项在排序结果中优先级最高。该配置项当rank_policy为`default`时有效 |
 | sort_by*    | object | 否   | 定义排序的规则和对应的计算方式，具体参数参见sort_by配置说明，一个rank配置中可以支持多个sort_by配置，表示按照多个规则依次进行排序。该配置项当rank_policy为`default`时有效 |
 
-#### sort_by配置
+#### sort_by 配置
 
 | 配置项 | 类型   | 必须 | 说明                                                         |
 | ------ | ------ | ---- | ------------------------------------------------------------ |
@@ -249,24 +258,34 @@ flow {
 }
 ```
 
-#### flow配置
+#### flow 配置
 
 | 配置项      | 类型   | 必须 | 说明                                                         |
 | ----------- | ------ | ---- | ------------------------------------------------------------ |
-| flow_policy | string | 否   | 表示流程控制使用的策略，默认为`default`，当默认流程控制策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
-| flow*       | string | 否   | 定义中控的流程节点和跳转关系，该配置项当flow_policy为`default`时有效，具体参数见flow节点配置 |
+| flow_policy | string | 否   | 表示流程控制使用的策略，现有支持策略有`default`、`recurrent` 和 `globalcancel`，当默认流程控制策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
+| flow*       | string | 否   | 定义中控的流程节点和跳转关系，该配置项当flow_policy为`default`、`recurrent`和`global_cancel`时有效，具体参数见flow节点配置 |
 
-#### flow节点配置
+注1: `default`为默认策略，按用户在flow节点中指定的`next`按顺序执行flow节点
+
+注2: `recurrent`实现了基本的服务跳转和异步并发配置。USKit接收到用户请求后，向指定后端发送请求。
+当制定请求返回结果并经过条件判断符合时，将返回结果的一部分作为请求参数发送新的后端请求（两次请求的后端不需要一致）。所有结果返回（或取消）后，进行排序，返回结果。
+
+注3: `globalcancel`在异步并发的基础上，支持在任意请求结果返回后检查全局数据判断条件，满足条件则向客户端返回结果。
+
+#### flow 节点配置
 
 | 配置项  | 类型     | 必须 | 说明                                                         |
 | ------- | -------- | ---- | ------------------------------------------------------------ |
 | name    | string   | 是   | 定义flow节点的名字，可以被其他flow节点的next配置项使用       |
 | def*    | KVE      | 否   | 定义flow节点中使用的局部变量，可在flow节点配置的其他配置项中使用，具体参数见KVE配置说明，flow节点配置中可以包含多个def配置 |
-| recall* | string   | 否   | 定义在该flow节点召回的后端远程服务，声明的值必须是在backend.conf中定义的service的名称，否则会提示找不到对应的b。一个flow节点配置中可以包含多个recall，表示并行召回这些后端远程服务 |
+| recall* | string   | 否   | 定义在该flow节点召回的后端远程服务，声明的值必须是在backend.conf中定义的service的名称，否则会提示找不到对应的backend。一个flow节点配置中可以包含多个recall，表示并行召回这些后端远程服务 |
 | rank*   | object   | 否   | 定义该flow节点使用的排序规则，具体参数见flow rank配置的说明，一个flow节点配置可以包含多个rank规则，比如先粗排后再精排 |
 | if*     | object   | 否   | 定义一个条件分支，具体参数见flow if配置的说明，一个flow节点可以包含多个if条件分支，用于多种情况判断 |
 | output* | KVE      | 否   | 表示默认情况下(即所有if都不满足)，定义结果的字段抽取和适配策略，每个output定义一个抽取的字段的名称及其对应的取值，具体参数见KVE配置说明。flow节点配置中可以包含多个output配置，用于多个字段的抽取。 |
 | next    | string   | 否   | 表示默认情况下(即所有if都不满足)，下一个跳转的flow节点，如果没有定义，则执行流程到此结束 |
+| recall_config | object | 否 | recall的升级配置，recall仍然可用。使用异步并发模式时在 flow.conf 中后端请求的配置项，作用等同于同步（默认）模式下的 recall 配置项；在异步模式中，不可以配置 recall 项，否则会覆盖 recall_config，使用同步模式一个 flow 节点只需要一个 recall_config，recall_config 中包含多个 recall_service 和一个 cancel_order |
+| global_cancel_config | object	| 否 | 定义一个全局退出的条件，具体参数见response if配置的说明（仅cond参数生效），在全局异步模式下为必须参数 |
+
 
 注1：在flow节点配置中，可以访问名为$recall的变量，该变量保存了该节点成功召回的技能的名称列表，可以作为排序的输入
 
@@ -274,7 +293,7 @@ flow {
 
 注3：每个flow节点配置会生成一个局部作用域
 
-#### flow rank配置
+#### flow rank 配置
 
 | 配置项 | 类型   | 必须 | 说明                                                    |
 | ------ | ------ | ---- | ------------------------------------------------------- |
@@ -282,13 +301,35 @@ flow {
 | input  | string | 否   | 排序使用的技能资源列表，默认为$recall                   |
 | top_k  | int32  | 否   | 只保留排序后的top k结果，没有指定时，保留全部结果       |
 
-#### flow if配置
+#### flow if 配置
 
 | 配置项 | 类型     | 必须 | 说明                                                         |
 | ------ | -------- | ---- | ------------------------------------------------------------ |
 | cond*  | string   | 是   | 定义进入分支的判断条件，每个cond要求是可以产生boolean结果的表达式。flow if配置中可以包含多个cond配置，多个cond之间是and关系 |
 | def*   | KVE      | 否   | 定义flow if配置中使用的局部变量，可在flow if配置的其他配置项中使用，具体参数见KVE配置说明，flow if配置中可以包含多个def配置 |
 | output | KVE      | 否   | 表示进入该分支后，定义结果的字段抽取和适配策略，每个output定义一个抽取的字段的名称及其对应的取值，具体参数见KVE配置说明。flow if配置中可以包含多个output配置，用于多个字段的抽取。 |
-| next   | string   | 否   | 表示进入该分支后，下一个跳转的flow节点                       |
+| next   | string   | 否   | 表示进入该分支后，下一个跳转的flow节点            |
 
 注：每个flow if配置会生成一个局部作用域
+
+### flow recall_config 配置
+
+| 配置项 | 类型     | 必须 | 说明                                                         |
+| ------ | -------- | ---- | ------------------------------------------------------------ |
+| cancel_order | string | 异步模式下必须 | 定义异步并发请求取消的方式，支持：ALL, PRIORITY, HIERACHY, NONE (大小写敏感) |
+| recall_service* | object | 异步模式下必须 | 定义在该flow节点召回的后端远程服务|
+
+### flow recall_service 配置
+| 配置项 | 类型     | 必须 | 说明                                                         |
+| ------ | -------- | ---- | ------------------------------------------------------------ |
+| name | string | 是 | 定义在该flow节点召回的后端远程服务，声明的值必须是在 backend.conf 中定义的 service 的名称，否则会提示找不到对应的 backend |
+| priority | int | 是 | 定义 recall_service 的优先级，具体使用见注1.
+注1:
+ * ALL: 该recall_service请求返回结果后，取消所有其他请求
+ * PRIORITY: 该recall_service请求返回结果后，取消所有 priority 参数**不大于**其 priority 的请求
+ * HIERACHY: 该recall_service请求返回结果后，取消所有与其 priority 参数**相同**的请求
+ * NONE: 该recall_service请求返回结果后，不取消任何请求
+ * GLOBAL_CANCEL：仅支持 flow policy 设置为 globalcancel 的 flow 配置；当**任意**请求返回结果后，检查全局数据是否符合配置中指定的条件，满足条件则退出 recall 阶段进入 rank 和 output 流程。
+
+以上配置中的 “请求返回结果” 判定条件为：后端请求返回状态码为 200（OK），
+简单异步模式配置中暂时不支持对返回结果解析后进行条件判断并取消请求

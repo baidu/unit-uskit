@@ -45,6 +45,7 @@ ExpressionContext::ExpressionContext(const std::string& name,
 }
 
 void ExpressionContext::set_variable(rapidjson::Value& key, rapidjson::Value& value) {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     _variables.AddMember(key, value, allocator());
 }
 
@@ -55,13 +56,16 @@ void ExpressionContext::set_variable(const std::string& key, rapidjson::Value& v
         }
     }
     rapidjson::Value variable;
+    std::lock_guard<std::mutex> lock(this->_mutex);
     variable.SetString(key.c_str(), key.length(), allocator());
     _variables.AddMember(variable, value, allocator());
 }
 
 void ExpressionContext::merge_variable(const std::string& key, rapidjson::Value& value) {
     rapidjson::Value* existing = get_variable(key);
+    
     if (existing != nullptr) {
+        std::lock_guard<std::mutex> lock(this->_mutex);
         merge_json_objects(*existing, value, allocator());
     } else {
         set_variable(key, value);
@@ -69,14 +73,17 @@ void ExpressionContext::merge_variable(const std::string& key, rapidjson::Value&
 }
 
 int ExpressionContext::set_variable_by_path(const std::string& path, rapidjson::Value& value) {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     return json_set_value_by_path(path, _variables, value);
 }
 
 bool ExpressionContext::erase_variable(const std::string& name) {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     return _variables.EraseMember(name.c_str());
 }
 
 bool ExpressionContext::has_variable(const std::string& name) {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     if (_variables.HasMember(name.c_str())) {
         return true;
     } else {
@@ -85,9 +92,12 @@ bool ExpressionContext::has_variable(const std::string& name) {
 }
 
 rapidjson::Value* ExpressionContext::get_variable(const std::string& name) {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     if (_variables.HasMember(name.c_str())) {
+        US_DLOG(INFO) << "Has " << name.c_str() << " in _variable: " << this->name().c_str();
         return &_variables[name.c_str()];
     } else if (_parent != nullptr) {
+        US_DLOG(INFO) << "Finding " << name.c_str() << " in _parent";
         return _parent->get_variable(name);
     } else {
         return nullptr;
@@ -107,6 +117,7 @@ ExpressionContext* ExpressionContext::parent() {
 }
 
 std::string ExpressionContext::str() {
+    std::lock_guard<std::mutex> lock(this->_mutex);
     return json_encode(_variables);
 }
 
@@ -256,7 +267,8 @@ int BinaryExpression::run(ExpressionContext& context, rapidjson::Value& value) {
 
     if (_op == "+" && lvalue.IsArray() && rvalue.IsArray()) {
         // Merge two arrays
-        value.CopyFrom(lvalue, context.allocator());
+        rapidjson::Document::AllocatorType& context_alloc = context.allocator();
+        value.CopyFrom(lvalue, context_alloc);
         for (auto & v : rvalue.GetArray()) {
             rapidjson::Value copy(v, context.allocator());
             value.PushBack(copy, context.allocator());
@@ -448,14 +460,16 @@ int TernaryExpression::run(ExpressionContext& context, rapidjson::Value& value) 
             US_LOG(ERROR) << "[TernaryExpression] Failed to evaluate left expression";
             return -1;
         }
-        value.CopyFrom(lvalue, context.allocator());
+        rapidjson::Document::AllocatorType& context_alloc = context.allocator();
+        value.CopyFrom(lvalue, context_alloc);
     } else {
         rapidjson::Value rvalue;
         if (_rhs->run(context, rvalue) != 0) {
             US_LOG(ERROR) << "[TernaryExpression] Failed to evaluate right expression";
             return -1;
         }
-        value.CopyFrom(rvalue, context.allocator());
+        rapidjson::Document::AllocatorType& context_alloc = context.allocator();
+        value.CopyFrom(rvalue, context_alloc);
     }
 
     return 0;
@@ -510,6 +524,7 @@ int CallExpression::run(ExpressionContext& context, rapidjson::Value& value) {
 
     rapidjson::Document return_value(&allocator);
     // Find function by name and run with evaluated args
+    US_DLOG(INFO) << "run function [" << _func_name << "]";
     int ret = function::FunctionManager::instance().call_function(_func_name,
                                                                   arg_values,
                                                                   return_value);
@@ -532,11 +547,18 @@ VariableExpression::~VariableExpression() {
 int VariableExpression::run(ExpressionContext& context, rapidjson::Value& value) {
     // Search for variable.
     rapidjson::Value* variable = context.get_variable(_name);
+    rapidjson::Document::AllocatorType& context_alloc = context.allocator();
     if (variable == nullptr) {
         US_LOG(ERROR) << "Variable [" << _name << "] undefined";
         return -1;
     }
-    value.CopyFrom(*variable, context.allocator());
+    //std::string output_str = "search for variable [" + _name + "], context: " + context.name() + " " + context.str();
+    //US_DLOG(ERROR) << output_str;
+    //if (&context_alloc == nullptr) {
+    //    US_DLOG(ERROR) << "Variabel [" << _name << "] context allocator NULL";
+    //}
+    US_DLOG(INFO) << json_encode(*variable);
+    value = rapidjson::Value(*variable, context_alloc);
 
     return 0;
 }

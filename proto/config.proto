@@ -24,6 +24,12 @@ message RequestConfig {
         repeated string arg = 2;
     }
     repeated RedisCommandConfig redis_cmd = 9;
+    // Nshead
+    optional string data_encode = 10;
+    // Dynamic HTTP
+    repeated KVE dynamic_args = 11;
+    optional string dynamic_args_node = 12 [default=""];
+    optional string dynamic_args_path = 13 [default="/"];
 }
 
 message ResponseConfig {
@@ -62,6 +68,8 @@ message BackendConfig {
     repeated ResponseConfig response_template = 10;
 
     repeated ServiceConfig service = 11;
+    // reserved for dynamic http
+    optional bool is_dynamic = 12 [default=false];
 }
 
 message BackendEngineConfig {
@@ -90,19 +98,37 @@ message FlowNodeConfig {
         repeated KVE output = 3;
         optional string next = 4;
     }
+    message GlobalCancelConfig {
+        repeated string cond = 1;
+        repeated KVE def = 2;
+        repeated KVE output = 3;
+        optional string next = 4;
+    }
     message RankConfig {
         required string rule = 1;
         optional string input = 2 [default="$recall"];
         optional uint32 top_k = 3 [default=1];
     }
+    message RecallConfig {
+        required string cancel_order = 1;
+        message RecallService {
+            required string recall_name = 1;
+            optional int32 priority = 2;
+            optional string next_flow = 3;
+        }
+        repeated RecallService recall_service = 3;
+    }
     required string name = 1;
     repeated KVE def = 2;
     repeated string recall = 3;
-    optional string recall_expr = 9;
     repeated RankConfig rank = 4;
     repeated IfConfig if = 5;
     repeated KVE output = 6;
     optional string next = 8;
+    optional string recall_expr = 9;
+    optional RecallConfig recall_config = 10;
+    optional GlobalCancelConfig global_cancel_config = 11;
+
 }
 
 message FlowEngineConfig {

@@ -16,7 +16,7 @@
 #define USKIT_COMMON_H
 
 #include <rapidjson/document.h>
-#include <butil/logging.h>
+#include "butil.h"
 #include "thread_data.h"
 
 namespace uskit {
@@ -29,18 +29,20 @@ typedef rapidjson::Document BackendResponse;
 typedef rapidjson::Value RankCandidate;
 typedef rapidjson::Value RankResult;
 
+typedef std::pair<BRPC_NAMESPACE::CallId, int> CallIdPriorityPair;
+
 } // namespace uskit
 
 // Wrappter for logging with logid tracking
 #define US_LOG(severity) \
-    LOG(severity) << "logid=" << (brpc::thread_local_data() == nullptr ? "" : \
-        (static_cast<uskit::UnifiedSchedulerThreadData*>(brpc::thread_local_data()))->logid()) \
+    LOG(severity) << "logid=" << (BRPC_NAMESPACE::thread_local_data() == nullptr ? "" : \
+        (static_cast<uskit::UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data()))->logid()) \
         << " "
 
 // Wrappter for debug logging with logid tracking
 #define US_DLOG(severity) \
-    DLOG(severity) << "logid=" << (brpc::thread_local_data() == nullptr ? "" : \
-        (static_cast<uskit::UnifiedSchedulerThreadData*>(brpc::thread_local_data()))->logid()) \
+    DLOG(severity) << "logid=" << (BRPC_NAMESPACE::thread_local_data() == nullptr ? "" : \
+        (static_cast<uskit::UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data()))->logid()) \
         << " "
 
 #endif // USKIT_COMMON_H

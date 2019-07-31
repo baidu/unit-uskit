@@ -22,8 +22,7 @@
 #include "expression/expression.h"
 #include "backend_service.h"
 
-namespace uskit
-{
+namespace uskit {
 
 // A backend engine manages backends and services of a unified scheduler.
 class BackendEngine {
@@ -38,12 +37,29 @@ public:
     // Returns 0 on success, -1 otherwise.
     int run(const std::vector<std::string>& recall_services,
             expression::ExpressionContext& context) const;
+    // Recall specified backend service in parallel.
+    // Support cancel operations
+    // Return 0 on success, -1 otherwise.
+    int run(const std::vector<std::pair<std::string, int> >& recall_services,
+            expression::ExpressionContext& context,
+            const std::string cancel_order) const;
+
+    int run(const FlowRecallConfig& recall_config,
+            std::vector<expression::ExpressionContext*>& context,
+            const std::unordered_map<std::string, FlowConfig>* flow_map,
+            const RankEngine* rank_engine,
+            std::shared_ptr<CallIdsVecThreadSafe> ids_ptr = nullptr) const;
+    // Return number of services
+    size_t get_service_size() const;
+    size_t get_service_index(std::string service_name) const;
+    bool hse_service(std::string service_name) const;
 
 private:
     std::unordered_map<std::string, BackendService> _service_map;
     std::unordered_map<std::string, Backend> _backend_map;
+    std::unordered_map<std::string, size_t> _service_context_index;
 };
 
-} // namespace uskit
+}  // namespace uskit
 
-#endif // USKIT_BACKEND_ENGINE_H
+#endif  // USKIT_BACKEND_ENGINE_H
