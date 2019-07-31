@@ -1,10 +1,10 @@
 ## 自定义函数和策略
 
-在US Kit内置的表达式函数和策略无法满足你的需求时，你可以通过编写C++代码来对系统进行自定义扩展，一般分为以下三步：
+在USKit内置的表达式函数和策略无法满足你的需求时，你可以通过编写C++代码来对系统进行自定义扩展，一般分为以下三步：
 
 1. 实现相应的接口
 2. 将新的函数/策略注册到系统中
-3. 重新编译US Kit
+3. 重新编译USKit
 
 ### 自定义函数
 函数接口定义(src/function/function_manager.h)：
@@ -48,7 +48,7 @@ void register_function() {
     // 自定义函数
     REGISTER_FUNCTION("int_add_one", int_add_one);
 ```
-成功编译US Kit后，就可以在配置表达式中使用名为`int_add_one`的函数了
+成功编译USKit后，就可以在配置表达式中使用名为`int_add_one`的函数了
 
 ### 自定义backend request策略
 策略基类接口定义(src/policy/backend_policy.h)：
@@ -94,7 +94,7 @@ void register_policy() {
 }
 ```
 
-成功编译US Kit后，就可以在`backend.conf`配置中将请求构造策略指定为`my_request_policy`：
+成功编译USKit后，就可以在`backend.conf`配置中将请求构造策略指定为`my_request_policy`：
 ```
 backend {
     service {
@@ -149,7 +149,7 @@ void register_policy() {
 }
 ```
 
-成功编译US Kit后，就可以在`backend.conf`配置中将结果解析策略指定为`my_response_policy`：
+成功编译USKit后，就可以在`backend.conf`配置中将结果解析策略指定为`my_response_policy`：
 ```
 backend {
     service {
@@ -205,7 +205,7 @@ void register_policy() {
 }
 ```
 
-成功编译US Kit后，就可以在`rank.conf`配置中将排序策略指定为`my_rank_policy`：
+成功编译USKit后，就可以在`rank.conf`配置中将排序策略指定为`my_rank_policy`：
 ```
 rank {
     ...
@@ -261,7 +261,7 @@ void register_policy() {
 }
 ```
 
-成功编译US Kit后，就可以在`flow.conf`配置中将排序策略指定为`my_flow_policy`：
+成功编译USKit后，就可以在`flow.conf`配置中将排序策略指定为`my_flow_policy`：
 ```
 flow_policy : "my_flow_policy"
 

@@ -1,8 +1,8 @@
-# US Kit 使用示例 (demo)
+# USKit 使用示例 (demo)
 
 ## 差旅场景
 
-该示例演示如何使用US Kit实现一个差旅场景下的对话机器人，需要同时支持天气查询、机票预定、酒店预定和闲聊共4个技能的满足。
+该示例演示如何使用USKit实现一个差旅场景下的对话机器人，需要同时支持天气查询、机票预定、酒店预定和闲聊共4个技能的满足。
 
 在进行对话中控的搭建之前，首先我们需要准备好以下4个技能：
 
@@ -14,9 +14,9 @@
 ![UNIT网站查看技能id](imgs/skill_id.png)
 
 ### 添加自定义技能
-酒店预定技能可以通过UNIT平台进行自定义技能配置，具体的配置方式参考DM Kit[示例文档](https://github.com/baidu/unit-dmkit/blob/master/docs/demo_skills.md)
+酒店预定技能可以通过UNIT平台进行自定义技能配置，具体的配置方式参考DMKit[示例文档](https://github.com/baidu/unit-dmkit/blob/master/docs/demo_skills.md)
 
-### 使用US Kit搭建对话机器人
+### 使用USKit搭建对话机器人
 
 在我们开始之前，梳理一下机器人中控需要完成的工作和策略：
 
@@ -193,7 +193,7 @@ options = {
 }
 ```
 
-然后运行`python conf_generator.py`即可生成US Kit所需的`backend.conf`，`rank.conf`和`flow.conf`3个配置文件：
+然后运行`python conf_generator.py`即可生成USKit所需的`backend.conf`，`rank.conf`和`flow.conf`3个配置文件：
 
 ```
 cd _build/conf/us/demo
@@ -224,7 +224,7 @@ curl -H "Content-type: application/json" -d '{"usid":"demo","logid":"123456","qu
 {"error_code":0,"error_msg":"OK","result":{"value":"请问您要预订哪一天的酒店？","skill":"hotel_44444"}}
 ```
 
-到此为此，我们就实现了一个差旅场景下的对话机器人，更深入学习US Kit的配置和其他用法可以参考[详细配置说明](config.md)和[配置表达式运算](expression.md)
+到此为此，我们就实现了一个差旅场景下的对话机器人，更深入学习USKit的配置和其他用法可以参考[详细配置说明](config.md)和[配置表达式运算](expression.md)
 
 ## 异步并发模式场景
 现在我们思考这样的一种场景：用户通过语音访问服务时环境嘈杂导致输入 query 缺少字词，从而召回率低于预期，我们可以使用 query 访问泛化/改写服务。如果使用同步并发的模式，第一次同时请求泛化服务和差旅场景的4个技能，待所有请求全部返回后第二次使用泛化结果再一次请求4个技能。总体上看如果相对易技能的请求时间，泛化服务的耗时短的多的话，那么使用异步模式，在泛化服务返回结果后马上再一次请求4个技能，可以将整体的服务耗时缩减到原来的50%。
