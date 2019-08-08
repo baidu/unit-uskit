@@ -379,6 +379,142 @@ int DynamicHttpRequestConfig::run(expression::ExpressionContext& context) const 
     return 0;
 }
 
+int HostDynHttpRequestConfig::init(
+        const RequestConfig& config,
+        const BackendRequestConfig* template_config) {
+    if (BackendRequestConfig::init(config, template_config) != 0) {
+        return -1;
+    }
+
+    if (_http_header.init(config.http_header()) != 0) {
+        return -1;
+    }
+    if (_http_query.init(config.http_query()) != 0) {
+        return -1;
+    }
+    if (_http_body.init(config.http_body()) != 0) {
+        return -1;
+    }
+
+    if (config.has_host_ip_port()) {
+        expression::Driver driver;
+        if (driver.parse("", config.host_ip_port()) != 0) {
+            LOG(ERROR) << "Failed to parse expression";
+            return -1;
+        }
+        _host_ip_port = driver.get_expression();
+    }
+    if (config.has_http_method()) {
+        _http_method = Expr(new expression::String(config.http_method()));
+    }
+    if (config.has_http_uri()) {
+        _http_uri = Expr(new expression::String(config.http_uri()));
+    }
+
+    return 0;
+}
+
+int HostDynHttpRequestConfig::run(expression::ExpressionContext& context) const {
+    if (BackendRequestConfig::run(context) != 0) {
+        return -1;
+    }
+    rapidjson::Document::AllocatorType& allocator = context.allocator();
+
+    if (_http_method) {
+        rapidjson::Value value;
+        if (_http_method->run(context, value) != 0) {
+            return -1;
+        }
+        context.set_variable("http_method", value);
+    }
+    if (_http_uri) {
+        rapidjson::Value value;
+        if (_http_uri->run(context, value) != 0) {
+            return -1;
+        }
+        context.set_variable("http_uri", value);
+    }
+    if (_host_ip_port) {
+        rapidjson::Value value;
+        if (_host_ip_port->run(context, value) != 0) {
+            return -1;
+        }
+        context.set_variable("host_ip_port", value);
+    }
+
+    rapidjson::Document http_header_doc(&allocator);
+    if (_http_header.run(context, http_header_doc) != 0) {
+        US_LOG(ERROR) << "Failed to evaluate http header";
+        return -1;
+    }
+    if (!http_header_doc.IsNull()) {
+        context.merge_variable("http_header", http_header_doc);
+    }
+
+    rapidjson::Document http_query_doc(&allocator);
+    if (_http_query.run(context, http_query_doc) != 0) {
+        US_LOG(ERROR) << "Failed to evaluate http query";
+        return -1;
+    }
+    if (!http_query_doc.IsNull()) {
+        context.merge_variable("http_query", http_query_doc);
+    }
+
+    rapidjson::Document http_body_doc(&allocator);
+    if (_http_body.run(context, http_body_doc) != 0) {
+        US_LOG(ERROR) << "Failed to evaluate http body";
+        return -1;
+    }
+    if (!http_body_doc.IsNull()) {
+        context.merge_variable("http_body", http_body_doc);
+    }
+
+    return 0;
+}
+
+int NsheadRequestConfig::init(
+        const RequestConfig& config,
+        const BackendRequestConfig* template_config) {
+    if (BackendRequestConfig::init(config, template_config) != 0) {
+        return -1;
+    }
+    if (_http_body.init(config.http_body()) != 0) {
+        return -1;
+    }
+    if (config.has_data_encode()) {
+        _data_encode = Expr(new expression::String(config.data_encode()));
+    }
+
+    return 0;
+}
+
+int NsheadRequestConfig::run(expression::ExpressionContext& context) const {
+    if (BackendRequestConfig::run(context) != 0) {
+        return -1;
+    }
+
+    rapidjson::Document::AllocatorType& allocator = context.allocator();
+
+    if (_data_encode) {
+        rapidjson::Value value;
+        if (_data_encode->run(context, value) != 0) {
+            return -1;
+        }
+        context.set_variable("data_encode", value);
+    }
+
+    rapidjson::Document http_body_doc(&allocator);
+    if (_http_body.run(context, http_body_doc) != 0) {
+        US_LOG(ERROR) << "Failed to evaluate http body";
+        return -1;
+    }
+    if (!http_body_doc.IsNull()) {
+        context.merge_variable("http_body", http_body_doc);
+    }
+
+    return 0;
+}
+
 int RedisCommand::init(const RequestConfig::RedisCommandConfig& config) {
     _op = config.op();
     if (_arg.init(config.arg()) != 0) {
@@ -941,6 +1077,9 @@ int FlowRankConfig::run(const RankEngine* rank_engine, expression::ExpressionCon
             top_k_rank_result.PushBack(rank_result[i], allocator);
         }
         rank_result = std::move(top_k_rank_result);
+    }
+    if (context.has_variable("rank")) {
+        context.erase_variable("rank");
     }
     context.set_variable("rank", rank_result);
 

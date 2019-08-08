@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "policy/backend/http_policy.h"
+#include "policy/backend/host_dyn_http_policy.h"
 #include "utils.h"
 
 namespace uskit {
 namespace policy {
 namespace backend {
 
-int HttpRequestPolicy::init(const RequestConfig& config, const Backend* backend) {
+int HostDynHttpRequestPolicy::init(const RequestConfig& config, const Backend* backend) {
     _backend = backend;
     const BackendRequestConfig* template_config = nullptr;
     if (config.has_include()) {
@@ -33,7 +33,7 @@ int HttpRequestPolicy::init(const RequestConfig& config, const Backend* backend)
     return 0;
 }
 
-int HttpRequestPolicy::run(BackendController* cntl) const {
+int HostDynHttpRequestPolicy::run(BackendController* cntl) const {
     BRPC_NAMESPACE::Controller& brpc_cntl = cntl->brpc_controller();
     expression::ExpressionContext request_context("request block", cntl->context());
 
@@ -60,6 +60,21 @@ int HttpRequestPolicy::run(BackendController* cntl) const {
         brpc_cntl.http_request().set_method(BRPC_NAMESPACE::HTTP_METHOD_POST);
     }
 
+    rapidjson::Value* host_ip_port = request_context.get_variable("host_ip_port");
+    if (host_ip_port == nullptr) {
+        US_LOG(ERROR) << "Required Host IP:Port";
+        return -1;
+    } else if (!host_ip_port->IsString()) {
+        US_LOG(ERROR) << "Host IP:Port supposed to be string, [" << get_value_type(*host_ip_port) << "] is given";
+        return -1;
+    }
+    std::string server_address = host_ip_port->GetString();
+    if (server_address.find(":") == server_address.npos) {
+        US_LOG(ERROR) << "Host [" << server_address <<"] is not in IP:PORT format";
+        return -1;
+    }
+
+    _channel->Init(host_ip_port->GetString(), &(_backend->channel()->options()));
     // Set HTTP Headers
     rapidjson::Value* http_header = request_context.get_variable("http_header");
     if (http_header != nullptr) {
@@ -109,18 +124,17 @@ int HttpRequestPolicy::run(BackendController* cntl) const {
         }
     }
 
-    BRPC_NAMESPACE::Channel* channel = _backend->channel();
     if (cntl->get_call_ids().empty()) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
+        _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
     } else if (!cntl->get_recall_next().empty()) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
+        _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
     } else if (
             cntl->get_cancel_order() == std::string("ALL") ||
             cntl->get_cancel_order() == std::string("PRIORITY") ||
                 cntl->get_cancel_order() == std::string("HIERACHY")) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_done.get());
+        _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_done.get());
     } else {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
+        _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
         US_LOG(WARNING) << "Fail to run cancel policy, no correct order given, ignored as NONE";
         return 0;
     }
@@ -128,7 +142,7 @@ int HttpRequestPolicy::run(BackendController* cntl) const {
     return 0;
 }
 
-int HttpRequestPolicy::run(
+int HostDynHttpRequestPolicy::run(
         const BackendEngine* backend_engine,
         BackendController* cntl,
         const std::unordered_map<std::string, FlowConfig>* flow_map,
@@ -160,6 +174,22 @@ int HttpRequestPolicy::run(
         brpc_cntl.http_request().set_method(BRPC_NAMESPACE::HTTP_METHOD_POST);
     }
 
+    rapidjson::Value* host_ip_port = request_context.get_variable("host_ip_port");
+    if (host_ip_port == nullptr) {
+        US_LOG(ERROR) << "Required Host IP:Port";
+        return -1;
+    } else if (!host_ip_port->IsString()) {
+        US_LOG(ERROR) << "Host IP:Port supposed to be string, [" << get_value_type(*host_ip_port) << "] is given";
+        return -1;
+    }
+    std::string server_address = host_ip_port->GetString();
+    if (server_address.find(":") == server_address.npos) {
+        US_LOG(ERROR) << "Host [" << server_address <<"] is not in IP:PORT format";
+        return -1;
+    }
+
+    _channel->Init(server_address.c_str(), &(_backend->channel()->options()));
+
     // Set HTTP Headers
     rapidjson::Value* http_header = request_context.get_variable("http_header");
     if (http_header != nullptr) {
@@ -209,12 +239,12 @@ int HttpRequestPolicy::run(
         }
     }
 
-    BRPC_NAMESPACE::Channel* channel = _backend->channel();
-    channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
+    _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
+
     return 0;
 }
 
-int HttpResponsePolicy::init(const ResponseConfig& config, const Backend* backend) {
+int HostDynHttpResponsePolicy::init(const ResponseConfig& config, const Backend* backend) {
     const BackendResponseConfig* template_config = nullptr;
     if (config.has_include()) {
         template_config = backend->response_config(config.include());
@@ -227,7 +257,7 @@ int HttpResponsePolicy::init(const ResponseConfig& config, const Backend* backen
     return 0;
 }
 
-int HttpResponsePolicy::run(BackendController* cntl) const {
+int HostDynHttpResponsePolicy::run(BackendController* cntl) const {
     BackendResponse& response = cntl->response();
     BRPC_NAMESPACE::Controller& brpc_cntl = cntl->brpc_controller();
     expression::ExpressionContext response_context(

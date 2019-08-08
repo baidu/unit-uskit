@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <brpc/redis.h>
+#include "brpc.h"
 #include "policy/backend/redis_policy.h"
 #include "utils.h"
 
@@ -36,7 +36,7 @@ int RedisRequestPolicy::init(const RequestConfig& config, const Backend* backend
 
 int RedisRequestPolicy::run(BackendController* cntl) const {
     RedisController* redis_cntl = static_cast<RedisController*>(cntl);
-    brpc::Controller& brpc_cntl = redis_cntl->brpc_controller();
+    BRPC_NAMESPACE::Controller& brpc_cntl = redis_cntl->brpc_controller();
     expression::ExpressionContext request_context("redis request block", redis_cntl->context());
 
     // Generate request config dynamically.
@@ -51,21 +51,86 @@ int RedisRequestPolicy::run(BackendController* cntl) const {
         US_LOG(ERROR) << "Required redis command";
         return -1;
     } else {
-        butil::StringPiece components[64];
-        brpc::RedisRequest redis_request;
+        BUTIL_NAMESPACE::StringPiece components[64];
+        BRPC_NAMESPACE::RedisRequest redis_request;
         // Add Redis commands.
-        for (auto & cmd : redis_cmd->GetArray()) {
+        for (auto& cmd : redis_cmd->GetArray()) {
             components[0] = cmd["op"].GetString();
             int size = 1;
-            for (auto & arg : cmd["arg"].GetArray()) {
+            for (auto& arg : cmd["arg"].GetArray()) {
                 components[size++] = arg.GetString();
             }
             redis_request.AddCommandByComponents(components, size);
         }
 
-        brpc::Channel* channel = _backend->channel();
-        brpc::RedisResponse& redis_response = redis_cntl->redis_response();
-        channel->CallMethod(nullptr, &brpc_cntl, &redis_request, &redis_response, brpc::DoNothing());
+        BRPC_NAMESPACE::Channel* channel = _backend->channel();
+        BRPC_NAMESPACE::RedisResponse& redis_response = redis_cntl->redis_response();
+        if (cntl->get_call_ids().empty()) {
+            channel->CallMethod(
+                    nullptr,
+                    &brpc_cntl,
+                    &redis_request,
+                    &redis_response,
+                    BRPC_NAMESPACE::DoNothing());
+        } else if (
+                cntl->get_cancel_order() == std::string("ALL") ||
+                cntl->get_cancel_order() == std::string("PRIORITY") ||
+                cntl->get_cancel_order() == std::string("HIERACHY")) {
+            channel->CallMethod(
+                    nullptr, &brpc_cntl, &redis_request, &redis_response, cntl->_done.get());
+        } else {
+           channel->CallMethod(
+                    nullptr,
+                    &brpc_cntl,
+                    &redis_request,
+                    &redis_response,
+                    BRPC_NAMESPACE::DoNothing());
+            US_LOG(WARNING) << "Fail to run cancel policy, no correct order given, ignored as NONE";
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+int RedisRequestPolicy::run(
+        const BackendEngine* backend_engine,
+        BackendController* cntl,
+        const std::unordered_map<std::string, FlowConfig>* flow_map,
+        const RankEngine* rank_engine) const {
+    RedisController* redis_cntl = static_cast<RedisController*>(cntl);
+    BRPC_NAMESPACE::Controller& brpc_cntl = redis_cntl->brpc_controller();
+    expression::ExpressionContext request_context(
+            "redis request block " + redis_cntl->service_name(), redis_cntl->context());
+
+    // Generate request config dynamically.
+    if (_request_config.run(request_context) != 0) {
+        US_LOG(ERROR) << "Failed to generate redis request config";
+        return -1;
+    }
+    US_DLOG(INFO) << "Generated request config: " << request_context.str();
+
+    rapidjson::Value* redis_cmd = request_context.get_variable("redis_cmd");
+    if (redis_cmd == nullptr) {
+        US_LOG(ERROR) << "Required redis command";
+        return -1;
+    } else {
+        BUTIL_NAMESPACE::StringPiece components[64];
+        BRPC_NAMESPACE::RedisRequest redis_request;
+        // Add Redis commands.
+        for (auto& cmd : redis_cmd->GetArray()) {
+            components[0] = cmd["op"].GetString();
+            int size = 1;
+            for (auto& arg : cmd["arg"].GetArray()) {
+                components[size++] = arg.GetString();
+            }
+            redis_request.AddCommandByComponents(components, size);
+        }
+
+        BRPC_NAMESPACE::Channel* channel = _backend->channel();
+        BRPC_NAMESPACE::RedisResponse& redis_response = redis_cntl->redis_response();
+        channel->CallMethod(
+                nullptr, &brpc_cntl, &redis_request, &redis_response, cntl->_jump_done.get());
     }
 
     return 0;
@@ -85,7 +150,7 @@ int RedisResponsePolicy::init(const ResponseConfig& config, const Backend* backe
 }
 
 // Parse Redis reply recursively.
-int parse_redis_reply(const brpc::RedisReply& redis_reply, rapidjson::Document& doc) {
+int parse_redis_reply(const BRPC_NAMESPACE::RedisReply& redis_reply, rapidjson::Document& doc) {
     rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
     if (redis_reply.is_nil()) {
         doc.SetNull();
@@ -117,8 +182,9 @@ int parse_redis_reply(const brpc::RedisReply& redis_reply, rapidjson::Document& 
 int RedisResponsePolicy::run(BackendController* cntl) const {
     RedisController* redis_cntl = static_cast<RedisController*>(cntl);
     BackendResponse& response = redis_cntl->response();
-    brpc::RedisResponse& redis_response = redis_cntl->redis_response();
-    expression::ExpressionContext response_context("redis response block", redis_cntl->context());
+    BRPC_NAMESPACE::RedisResponse& redis_response = redis_cntl->redis_response();
+    expression::ExpressionContext response_context(
+            "redis response block " + redis_cntl->service_name(), redis_cntl->context());
     rapidjson::Document::AllocatorType& allocator = response.GetAllocator();
 
     response.SetArray();
@@ -145,7 +211,6 @@ int RedisResponsePolicy::run(BackendController* cntl) const {
         US_LOG(ERROR) << "Failed to generate redis response config";
         return -1;
     }
-    response_context.erase_variable("response");
 
     US_DLOG(INFO) << "Generated respone config: " << response_context.str();
     rapidjson::Value* output = response_context.get_variable("output");
@@ -158,6 +223,6 @@ int RedisResponsePolicy::run(BackendController* cntl) const {
     return 0;
 }
 
-} // namespace backend
-} // namespace policy
-} // namespace uskit
+}  // namespace backend
+}  // namespace policy
+}  // namespace uskit

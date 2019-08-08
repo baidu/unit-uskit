@@ -19,6 +19,7 @@
 #include "policy/backend/http_policy.h"
 #include "policy/backend/redis_policy.h"
 #include "policy/backend/dynamic_policy.h"
+#include "policy/backend/host_dyn_http_policy.h"
 #include "policy/flow/default_policy.h"
 #include "policy/flow/recurrent_policy.h"
 #include "policy/flow/global_policy.h"
@@ -59,12 +60,15 @@ void register_policy() {
     REGISTER_REQUEST_POLICY("redis_default", policy::backend::RedisRequestPolicy);
 
     REGISTER_REQUEST_POLICY("dynamic_default", policy::backend::DynamicHttpRequestPolicy);
+    REGISTER_REQUEST_POLICY("dynamic_host_default", policy::backend::HostDynHttpRequestPolicy);
 
     // Response policy
     REGISTER_RESPONSE_POLICY("http_default", policy::backend::HttpResponsePolicy);
     REGISTER_RESPONSE_POLICY("redis_default", policy::backend::RedisResponsePolicy);
 
     REGISTER_RESPONSE_POLICY("dynamic_default", policy::backend::DynamicHttpResponsePolicy);
+
+    REGISTER_RESPONSE_POLICY("dynamic_host_default", policy::backend::HostDynHttpResponsePolicy);
 
     // Flow policy
     REGISTER_FLOW_POLICY("default", policy::flow::DefaultPolicy);

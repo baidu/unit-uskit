@@ -13,10 +13,12 @@
 // limitations under the License.
 
 #include "brpc.h"
+#include "config.pb.h"
 #include "unified_scheduler_manager.h"
 #include "utils.h"
 #include "global.h"
 #include "thread_data.h"
+#include "rapidjson/pointer.h"
 
 namespace uskit {
 
@@ -40,6 +42,22 @@ int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig& config) {
         _us_map.emplace(usid, std::move(us));
     }
 
+    if (config.required_params_size() == 0) {
+        _required_params = {"logid", "uuid", "usid", "query"};
+    }
+    for (int i = 0; i < config.required_params_size(); ++i) {
+        const UnifiedSchedulerConfig_RequiredParam required_param = config.required_params(i);
+        std::string param_name = required_param.param_name();
+        _required_params.push_back(param_name);
+        if (required_param.has_default_value()) {
+            _params_default.emplace(param_name, required_param.default_value());
+        } else if (required_param.has_param_path()) {
+            _params_path.emplace(param_name, required_param.param_path());
+        } else {
+            LOG(ERROR) << "Failed to init uskit with required parameter [" << param_name << "]";
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -55,7 +73,7 @@ int UnifiedSchedulerManager::run(BRPC_NAMESPACE::Controller* cntl) {
         return -1;
     }
     parse_request_tm.stop();
-
+    LOG(INFO) << "REQUEST: " << json_encode(request);
     // Run unified scheduler of specific usid.
     std::string usid = request["usid"].GetString();
     auto us_iter = _us_map.find(usid);
@@ -83,12 +101,47 @@ int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USR
         return -1;
     }
 
+    for (auto header_iter = cntl->http_request().HeaderBegin();
+         header_iter != cntl->http_request().HeaderEnd();
+         ++header_iter) {
+        std::string path = "/__HEADER__/" + header_iter->first;
+        std::string header_val = header_iter->second;
+        rapidjson::Pointer(path.c_str()).Set(request, header_val.c_str());
+    }
+
     // Check required parameters
     UnifiedSchedulerThreadData* td =
             static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
-    std::vector<std::string> required_params = {"logid", "uuid", "usid", "query"};
-    for (auto& param : required_params) {
-        if (!request.HasMember(param.c_str())) {
+    for (auto& param : _required_params) {
+        std::string value = "";
+        auto _params_default_iter = _params_default.find(param.c_str());
+        auto _params_value_path_iter = _params_path.find(param.c_str());
+        if (_params_default_iter != _params_default.end()) {
+            value = _params_default_iter->second;
+        } else if (_params_value_path_iter != _params_path.end()) {
+            std::string path = _params_value_path_iter->second;
+            if (path[0] != '/') {
+                path = "/" + path;
+            }
+            // Root path.
+            if (path == "/") {
+                path = "";
+            }
+            rapidjson::Pointer pointer(path.c_str());
+            rapidjson::Value* req_value = rapidjson::GetValueByPointer(request, pointer);
+            if (req_value == nullptr) {
+                send_response(
+                        cntl,
+                        nullptr,
+                        ErrorCode::MISSING_PARAM,
+                        ErrorMessage.at(ErrorCode::MISSING_PARAM) + ": " + param +
+                                ", supposed to be at " + path);
+                return -1;
+            } else {
+                value = json_encode(*req_value);
+            }
+
+        } else if (!request.HasMember(param.c_str())) {
             send_response(
                     cntl,
                     nullptr,
@@ -102,18 +155,21 @@ int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USR
                     ErrorCode::INVALID_JSON,
                     ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param);
             return -1;
-        } else if (!request[param.c_str()].IsString()) {
-            send_response(cntl, nullptr, ErrorCode::INVALID_JSON,
-                    ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param);
-            return -1;
-        }        
-        std::string value = request[param.c_str()].GetString();
+        } else {
+            value = request[param.c_str()].GetString();
+        }
         if (param == "logid") {
             // Setup logid of this request.
             td->set_logid(value);
         } else {
             td->add_log_entry(param, value);
         }
+        rapidjson::Value tmp_key(param.c_str(), request.GetAllocator());
+        rapidjson::Value tmp_value(value.c_str(), request.GetAllocator());
+        if (request.HasMember(param.c_str())) {
+            request.EraseMember(param.c_str());
+        }
+        request.AddMember(tmp_key, tmp_value, request.GetAllocator());
     }
 
     return 0;

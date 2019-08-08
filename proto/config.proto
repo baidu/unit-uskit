@@ -30,6 +30,7 @@ message RequestConfig {
     repeated KVE dynamic_args = 11;
     optional string dynamic_args_node = 12 [default=""];
     optional string dynamic_args_path = 13 [default="/"];
+    optional string host_ip_port = 14;
 }
 
 message ResponseConfig {
@@ -139,4 +140,10 @@ message FlowEngineConfig {
 message UnifiedSchedulerConfig {
     optional string root_dir = 1 [default="./conf/us"];
     repeated string load = 2;
+    message RequiredParam {
+        required string param_name = 3;
+        optional string param_path = 4;
+        optional string default_value = 5;
+    }
+    repeated RequiredParam required_params = 6;
 }

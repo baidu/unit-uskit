@@ -93,6 +93,11 @@ int DefaultPolicy::run(USRequest& request, USResponse& response,
         rapidjson::Value* flow_next = flow_context.get_variable("next");
         if (flow_next != nullptr) {
             // Get next flow node.
+            std::string next_flow_str = flow_next->GetString();
+            if (next_flow_str == curr_flow) {
+                US_LOG(ERROR) << "Self jump is not allowed";
+                break;
+            }
             curr_flow = flow_next->GetString();
         } else {
             break;

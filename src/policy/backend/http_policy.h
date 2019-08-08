@@ -27,6 +27,11 @@ class HttpRequestPolicy : public BackendRequestPolicy {
 public:
     int init(const RequestConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
+    int run(
+            const BackendEngine* backend_engine,
+            BackendController* cntl,
+            const std::unordered_map<std::string, FlowConfig>* flow_map,
+            const RankEngine* rank_engine) const;
 private:
     const Backend* _backend;
     HttpRequestConfig _request_config;

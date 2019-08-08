@@ -148,6 +148,12 @@ mkdir -p _build/conf/us/demo
 
 --url_path：指定uskit服务的url路径，默认为`/us`
 
+-http_verbose: 在stderr输出http网络请求和返回的数据
+
+-http_verbose_max_body_length: 指定http_verbose输出数据的最大长度
+
+-redis_verbose：在stderr输出redis请求和返回的数据
+
 如果配置有错，会导致服务启动失败；
 
 成功启动uskit服务后，可以通过`<HOST>:8888/us`发起HTTP POST请求，请求体使用json格式，请求参数如下：
