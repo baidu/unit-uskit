@@ -16,20 +16,30 @@
 #define USKIT_POLICY_BACKEND_POLICY_H
 
 #include "config.pb.h"
-#include "backend.h"
+#include "common.h"
 #include "backend_controller.h"
+#include "dynamic_config.h"
+#include "backend.h"
+#include "utils.h"
 
 namespace uskit {
 namespace policy {
-    
+
 // Base class of backend request policy.
 class BackendRequestPolicy {
 public:
     BackendRequestPolicy() {}
     virtual ~BackendRequestPolicy() {}
 
-    virtual int init(const RequestConfig& config, const Backend* backend) { return 0; }
+    virtual int init(const RequestConfig& config, const Backend* backend) {
+        return 0;
+    }
     virtual int run(BackendController* cntl) const = 0;
+    virtual int run(
+            const BackendEngine* backend_engine,
+            BackendController* cntl,
+            const std::unordered_map<std::string, FlowConfig>* flow_map,
+            const RankEngine* rank_engine) const = 0;
 };
 
 // Base class of backend response policy.
@@ -38,11 +48,12 @@ public:
     BackendResponsePolicy() {}
     virtual ~BackendResponsePolicy() {}
 
-    virtual int init(const ResponseConfig& config, const Backend* backend) { return 0; }
+    virtual int init(const ResponseConfig& config, const Backend* backend) {
+        return 0;
+    }
     virtual int run(BackendController* cntl) const = 0;
 };
 
-} // namespace policy
-} // namespace uskit
-
-#endif // USKIT_POLICY_BACKEND_POLICY_H
+}  // namespace policy
+}  // namespace uskit
+#endif  // USKIT_POLICY_BACKEND_POLICY_H

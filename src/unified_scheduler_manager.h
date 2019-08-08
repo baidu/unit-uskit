@@ -50,6 +50,9 @@ private:
                       ErrorCode error_code = ErrorCode::OK, const std::string& error_msg = "");
 
     std::unordered_map<std::string, UnifiedScheduler> _us_map;
+    std::vector<std::string> _required_params;
+    std::unordered_map<std::string, std::string> _params_default;
+    std::unordered_map<std::string, std::string> _params_path;
 };
 } // namespace uskit
 

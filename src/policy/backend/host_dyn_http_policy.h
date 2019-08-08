@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef USKIT_POLICY_BACKEND_REDIS_POLICY_H
-#define USKIT_POLICY_BACKEND_REDIS_POLICY_H
+#ifndef USKIT_POLICY_BACKEND_HOST_DYN_HTTP_POLICY_H
+#define USKIT_POLICY_BACKEND_HOST_DYN_HTTP_POLICY_H
 
 #include "policy/backend_policy.h"
+#include "dynamic_config.h"
 
 namespace uskit {
 namespace policy {
 namespace backend {
 
-// Default Redis request policy.
-class RedisRequestPolicy : public BackendRequestPolicy {
+// Default HTTP request policy.
+class HostDynHttpRequestPolicy : public BackendRequestPolicy {
 public:
+    HostDynHttpRequestPolicy() : BackendRequestPolicy(), _backend(nullptr) ,_channel(new BRPC_NAMESPACE::Channel) {}
     int init(const RequestConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
     int run(
@@ -33,11 +35,12 @@ public:
             const RankEngine* rank_engine) const;
 private:
     const Backend* _backend;
-    RedisRequestConfig _request_config;
+    HostDynHttpRequestConfig _request_config;
+    std::unique_ptr<BRPC_NAMESPACE::Channel> _channel;
 };
 
-// Default Redis response policy.
-class RedisResponsePolicy : public BackendResponsePolicy {
+// Default HTTP response policy.
+class HostDynHttpResponsePolicy : public BackendResponsePolicy {
 public:
     int init(const ResponseConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
@@ -49,4 +52,4 @@ private:
 } // namespace policy
 } // namespace uskit
 
-#endif // USKIT_POLICY_BACKEND_REDIS_POLICY_H
+#endif // USKIT_POLICY_BACKEND_HTTP_POLICY_H

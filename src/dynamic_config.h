@@ -148,6 +148,50 @@ private:
     KEMap _dynamic_args;
 };
 
+// Dynamic configuration of HTTP request with host not pre-defined.
+class HostDynHttpRequestConfig : public BackendRequestConfig {
+public:
+    HostDynHttpRequestConfig() {}
+    ~HostDynHttpRequestConfig() {}
+    HostDynHttpRequestConfig(HostDynHttpRequestConfig&&) = default;
+    // Initialize from configuration and template(optional).
+    // Returns 0 on success, -1 otherwise.
+    int init(const RequestConfig& config, const BackendRequestConfig* template_config);
+    // Evaluate all expressions within given context and generate HTTP
+    // request configuration.
+    // Returns 0 on success, -1 otherwise.
+    int run(expression::ExpressionContext& context) const;
+
+private:
+    Expr _http_method;
+    Expr _http_uri;
+    Expr _host_ip_port;
+
+    KEMap _http_header;
+    KEMap _http_query;
+    KEMap _http_body;
+};
+
+// Dynamic configuration of NsHead request.
+class NsheadRequestConfig : public BackendRequestConfig {
+public:
+    NsheadRequestConfig() {}
+    ~NsheadRequestConfig() {}
+    NsheadRequestConfig(NsheadRequestConfig&&) = default;
+    // Initialize from configuration and template(optional).
+    // Returns 0 on success, -1 otherwise.
+    int init(const RequestConfig& config, const BackendRequestConfig* template_config);
+    // Evaluate all expressions within given context and generate HTTP
+    // request configuration.
+    // Returns 0 on success, -1 otherwise.
+    int run(expression::ExpressionContext& context) const;
+
+private:
+    Expr _data_encode;
+
+    KEMap _http_body;
+};
+
 // Dynamic configuration of Redis command.
 class RedisCommand {
 public:

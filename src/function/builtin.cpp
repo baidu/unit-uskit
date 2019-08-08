@@ -533,8 +533,7 @@ int for_each_get_by_path(rapidjson::Value& args, rapidjson::Document& return_val
         if (value != nullptr) {
             rapidjson::Value ele_value(*value, return_value.GetAllocator());
             return_value.PushBack(ele_value, return_value.GetAllocator());
-        }
-        else {
+        } else {
             rapidjson::Value ele_value;
             if (args.Size() == 2) {
                 ele_value.SetNull();
@@ -577,7 +576,7 @@ int json_decode(rapidjson::Value& args, rapidjson::Document& return_value) {
     return 0;
 }
 
-int replace_all(rapidjson::Value& args, rapidjson::Document& return_value){
+int replace_all(rapidjson::Value& args, rapidjson::Document& return_value) {
     if (args.Size() != 3) {
         US_LOG(ERROR) << "Function expects 3 arguments, " << args.Size() << " were given";
         return -1;
@@ -907,6 +906,20 @@ int sha1_hash(rapidjson::Value& args, rapidjson::Document& return_value) {
 
 int time(rapidjson::Value& args, rapidjson::Document& return_value) {
     std::time_t timestamp = std::time(nullptr);
+    if (args.Size() == 1) {
+        if (!args[0].IsString()) {
+            US_LOG(ERROR) << "Function expects seconde argement to be string, "
+                          << get_value_type(args[0]) << "were given";
+            return -1;
+        }
+        std::tm now_tm ;
+        localtime_r(&timestamp, &now_tm);
+        char buffer[128];
+        std::strftime(buffer, sizeof(buffer), args[0].GetString(), &now_tm);
+        std::string ret_str(buffer);
+        return_value.SetString(ret_str.c_str(), ret_str.length(), return_value.GetAllocator());
+        return 0;
+    }
     return_value.SetInt(timestamp);
     return 0;
 }

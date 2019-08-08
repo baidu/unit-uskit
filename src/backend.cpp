@@ -54,10 +54,14 @@ int Backend::init(const BackendConfig& config) {
     for (int i = 0; i < config.request_template_size(); ++i) {
         const RequestConfig& request_template = config.request_template(i);
         std::unique_ptr<BackendRequestConfig> request_config;
-        if (protocol == "http" && !_is_dynamic) {
-            request_config.reset(new HttpRequestConfig);
-        } else if (protocol == "http" && _is_dynamic) {
-            request_config.reset(new DynamicHttpRequestConfig);
+        if (protocol == "http") {
+            if (!_is_dynamic) {
+                request_config.reset(new HttpRequestConfig);
+            } else if (request_template.has_host_ip_port()) {
+                request_config.reset(new HostDynHttpRequestConfig);
+            } else {
+                request_config.reset(new DynamicHttpRequestConfig);
+            }
         } else if (protocol == "redis") {
             request_config.reset(new RedisRequestConfig);
         } else {
