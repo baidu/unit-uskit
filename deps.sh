@@ -45,6 +45,7 @@ cd brpc
 git checkout master
 echo "Updating brpc..."
 git pull
+git checkout 2ae7f04ce513c6aee27545df49d5439a98ae3a3f
 
 #build brpc
 echo "Building brpc..."
