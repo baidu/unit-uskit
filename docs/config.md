@@ -209,7 +209,7 @@ rank {
 | 配置项      | 类型   | 必须 | 说明                                                         |
 | ----------- | ------ | ---- | ------------------------------------------------------------ |
 | name        | string | 是   | 定义一个排序规则的名称，用于在flow.conf中进行引用            |
-| rank_policy | string | 否   | 表示排序使用的策略，默认为`default`，当默认排序策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
+| rank_policy | string | 否   | 表示排序使用的策略，默认为`default`，当默认排序策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](custom.md) |
 | order*      | string | 否   | 技能之间的优先级顺序定义，支持定义多个order，按照定义从上到下的顺序，技能优先级逐步下降；每个order支持通过逗号(,)定义多个同等优先级的技能，该配置项在排序结果中优先级最高。该配置项当rank_policy为`default`时有效 |
 | sort_by*    | object | 否   | 定义排序的规则和对应的计算方式，具体参数参见sort_by配置说明，一个rank配置中可以支持多个sort_by配置，表示按照多个规则依次进行排序。该配置项当rank_policy为`default`时有效 |
 
@@ -262,7 +262,7 @@ flow {
 
 | 配置项      | 类型   | 必须 | 说明                                                         |
 | ----------- | ------ | ---- | ------------------------------------------------------------ |
-| flow_policy | string | 否   | 表示流程控制使用的策略，现有支持策略有`default`、`recurrent` 和 `globalcancel`，当默认流程控制策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
+| flow_policy | string | 否   | 表示流程控制使用的策略，现有支持策略有`default`、`recurrent` 和 `globalcancel`，当默认流程控制策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](custom.md) |
 | flow*       | string | 否   | 定义中控的流程节点和跳转关系，该配置项当flow_policy为`default`、`recurrent`和`global_cancel`时有效，具体参数见flow节点配置 |
 
 注1: `default`为默认策略，按用户在flow节点中指定的`next`按顺序执行flow节点
