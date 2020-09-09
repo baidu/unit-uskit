@@ -124,9 +124,9 @@ backend {
 | 配置项          | 类型   | 必须 | 说明                                                         |
 | --------------- | ------ | ---- | ------------------------------------------------------------ |
 | name            | string | 是   | service的名称                                                |
-| request_policy  | string | 否   | 表示service的请求构造策略，默认为`default`，当默认请求构造策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
+| request_policy  | string | 否   | 表示service的请求构造策略，默认为`default`，当默认请求构造策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](custom.md) |
 | request         | object | 否   | 该service的请求构造配置，当request_policy为`default`时有效，具体参数参见request配置说明 |
-| response_policy | string | 否   | 表示service的结果解析策略，默认为`default`，当默认结果解析策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](docs/custom.md) |
+| response_policy | string | 否   | 表示service的结果解析策略，默认为`default`，当默认结果解析策略没法满足使用方需求时，可以进行策略自定义，详见[自定义函数和策略](custom.md) |
 | response        | object | 否   | 该service的请求构造配置，当response_policy为`default`时有效，具体参数参见response配置说明 |
 |dynamic_args_node |string | 否 |动态参数对request进行修改的参数类型，现在支持："uri", "query", "body", 分别对应修改 “http_uri", "http_query", "http_body"|
 |dynamic_args*|KVE | 否 | key 为动态输入修改的参数类型中的 path（仅在dynamic_args_node 为 query 和 uri 时生效，body 时忽略），expr 解析后应得到一个数组|
