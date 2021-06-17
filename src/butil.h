@@ -11,20 +11,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef DMKIT_BUTIL_H
-#define DMKIT_BUTIL_H
+
+#ifndef USKIT_BUTIL_H
+#define USKIT_BUTIL_H
+
 #ifndef BUTIL_INCLUDE_PREFIX
 #define BUTIL_INCLUDE_PREFIX <butil
 #endif
+
 #ifndef BUTIL_NAMESPACE
 #define BUTIL_NAMESPACE butil
 #endif
+
 #include BUTIL_INCLUDE_PREFIX/iobuf.h>
 #include BUTIL_INCLUDE_PREFIX/containers/flat_map.h>
+#include BUTIL_INCLUDE_PREFIX/fast_rand.h>
 #include BUTIL_INCLUDE_PREFIX/logging.h>
 #include BUTIL_INCLUDE_PREFIX/strings/string_util.h>
 #include BUTIL_INCLUDE_PREFIX/strings/string_split.h>
 #include BUTIL_INCLUDE_PREFIX/time.h>
-#include BUTIL_INCLUDE_PREFIX/md5.h>
-#include BUTIL_INCLUDE_PREFIX/sha1.h>
-#endif  //DMKIT_BUTIL_H
+#include BUTIL_INCLUDE_PREFIX/base64.h>
+
+#endif  // USKIT_BUTIL_H

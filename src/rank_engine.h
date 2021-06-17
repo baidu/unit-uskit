@@ -39,8 +39,9 @@ public:
     int run(const std::string& name, RankCandidate& rank_candidate,
             RankResult& rank_result, expression::ExpressionContext& context) const;
 private:
-    std::unordered_map<std::string, std::unique_ptr<policy::RankPolicy>> _rank_map;
+    std::unordered_map<std::string, std::shared_ptr<policy::RankPolicy>> _rank_map;
 };
+
 } // namespace uskit
 
 #endif // USKIT_RANK_ENGINE_H

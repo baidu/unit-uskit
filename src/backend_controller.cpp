@@ -27,30 +27,9 @@ BackendController::BackendController(
 
 BackendController::~BackendController() {}
 
-int BackendController::build_request() {
-    // Build request with policy of associated backend service
-    if (_cancel_order == std::string("ALL")) {
-        _done = std::unique_ptr<google::protobuf::Closure>(new AllCancelRPC(this, _cntls_call_ids));
-    } else if (_cancel_order == std::string("PRIORITY")) {
-        _done = std::unique_ptr<google::protobuf::Closure>(
-                new PriorityCancelRPC(this, _cntls_call_ids, _priority));
-    } else if (_cancel_order == std::string("HIERACHY")) {
-        _done = std::unique_ptr<google::protobuf::Closure>(
-                new HierarchyCancelRPC(this, _cntls_call_ids, _priority));
-    }
+int BackendController::build_request(const policy::FlowPolicy* flow_policy) {
+    _done = build_controller_closure(_cancel_order, this, flow_policy);
     if (_service->build_request(this) != 0) {
-        return -1;
-    }
-    return 0;
-}
-
-int BackendController::build_request(
-        const BackendEngine* backend_engine,
-        const std::unordered_map<std::string, FlowConfig>* flow_map,
-        const RankEngine* rank_engine) {
-    _jump_done = std::unique_ptr<google::protobuf::Closure>(
-            new JumpRPC(this, flow_map, backend_engine, rank_engine));
-    if (_service->build_request(backend_engine, this, flow_map, rank_engine) != 0) {
         return -1;
     }
     return 0;
@@ -96,6 +75,50 @@ BackendResponse& BackendController::response() {
 
 expression::ExpressionContext& BackendController::context() {
     return _context;
+}
+
+int BackendController::join() {
+    BRPC_NAMESPACE::Join(brpc_controller().call_id());
+    return 0;
+}
+
+int64_t BackendController::get_latency_us() {
+    return brpc_controller().latency_us();
+}
+
+bool BackendController::failed() {
+    return brpc_controller().Failed();
+}
+
+int BackendController::run_service_suc_flag(bool& bool_value) {
+    return _service->run_success_flag(_context, bool_value);
+}
+
+int DynamicHTTPController::join() {
+    for (auto brpc_iter = brpc_controller_list().begin(); brpc_iter != brpc_controller_list().end();
+         ++brpc_iter) {
+        BRPC_NAMESPACE::Join(brpc_iter->get()->call_id());
+    }
+    return 0;
+}
+
+int64_t DynamicHTTPController::get_latency_us() {
+    int64_t latency_time = 0;
+    for (auto brpc_iter = brpc_controller_list().begin(); brpc_iter != brpc_controller_list().end();
+         ++brpc_iter) {
+        latency_time += brpc_iter->get()->latency_us() / 1000;
+    }
+    return latency_time;
+}
+
+bool DynamicHTTPController::failed() {
+    for (auto brpc_iter = brpc_controller_list().begin(); brpc_iter != brpc_controller_list().end();
+         ++brpc_iter) {
+        if (brpc_iter->get()->Failed()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 BackendController* build_backend_controller(

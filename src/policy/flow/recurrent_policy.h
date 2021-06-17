@@ -15,27 +15,24 @@
 #ifndef USKIT_POLICY_FLOW_RECURRENT_POLICY_H
 #define USKIT_POLICY_FLOW_RECURRENT_POLICY_H
 
-#include "policy/flow_policy.h"
-#include "dynamic_config.h"
+#include "policy/flow/default_policy.h"
 
 namespace uskit {
 namespace policy {
 namespace flow {
 
-// Default flow policy.
-class RecurrentPolicy : public FlowPolicy {
+// Flow policy supports async recall inside same node, set policy name as
+// "recurrent"(deprecated) or "node_aync"
+class AsyncInsideNodePolicy : public DefaultPolicy {
 public:
-    int init(const google::protobuf::RepeatedPtrField<FlowNodeConfig> &config);
-    int run(USRequest& request, USResponse& response,
-            const BackendEngine* backend_engine,
-            const RankEngine* rank_engine) const;
-private:
-    std::unordered_map<std::string, FlowConfig> _flow_map;
-    std::string _start_flow;
+    int kernel_process(
+            expression::ExpressionContext& flow_context,
+            const FlowConfig& flow_config,
+            HelperPtr helper) const override;
 };
 
-} // namespace flow
-} // namespace policy
-} // namespace uskit
+}  // namespace flow
+}  // namespace policy
+}  // namespace uskit
 
-#endif // USKIT_POLICY_FLOW_RECURRENT_POLICY_H
+#endif  // USKIT_POLICY_FLOW_RECURRENT_POLICY_H

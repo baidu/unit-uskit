@@ -35,11 +35,6 @@ public:
         return 0;
     }
     virtual int run(BackendController* cntl) const = 0;
-    virtual int run(
-            const BackendEngine* backend_engine,
-            BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const = 0;
 };
 
 // Base class of backend response policy.
@@ -56,4 +51,5 @@ public:
 
 }  // namespace policy
 }  // namespace uskit
+
 #endif  // USKIT_POLICY_BACKEND_POLICY_H

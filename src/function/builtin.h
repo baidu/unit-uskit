@@ -15,6 +15,7 @@
 #ifndef USKIT_FUNCTION_BUILTIN_H
 #define USKIT_FUNCTION_BUILTIN_H
 
+#include <vector>
 #include <rapidjson/document.h>
 
 namespace uskit {
@@ -22,6 +23,7 @@ namespace function {
 
 // Notice: Read docs/expression.md for detailed documentation.
 
+int parameter_check(rapidjson::Value& args, std::vector<rapidjson::Type> define_types);
 // Get JSON value by Unix-like path.
 int get_value_by_path(rapidjson::Value& args, rapidjson::Document& return_value);
 // Set JSON value by Unix-like path.
@@ -66,6 +68,14 @@ int md5_hash(rapidjson::Value& args, rapidjson::Document& return_value);
 int sha1_hash(rapidjson::Value& args, rapidjson::Document& return_value);
 // Get Unix timestamp.
 int time(rapidjson::Value& args, rapidjson::Document& return_value);
+// Get hamc-sha1 result
+int hmac_sha1(rapidjson::Value& args, rapidjson::Document& return_value);
+// Base64 Encoder
+int base64_encode(rapidjson::Value& args, rapidjson::Document& return_value);
+// Random String Generator
+int rand_str(rapidjson::Value& args, rapidjson::Document& return_value);
+// Query Encoder
+int query_encode(rapidjson::Value& args, rapidjson::Document& return_value);
 
 } // namespace function
 } // namespace uskit

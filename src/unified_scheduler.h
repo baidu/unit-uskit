@@ -21,8 +21,8 @@
 #include "flow_engine.h"
 #include "config.pb.h"
 
-namespace uskit
-{
+namespace uskit {
+
 // A unified schedule represents a bot service of a specific dialogue scenario.
 // A unified scheduler is composed of 3 engines: backend engine, rank engine and
 // flow engine.
@@ -34,13 +34,14 @@ public:
     // Initialize unified scheduler from configuration.
     // Returns 0 on success, -1 otherwise.
     int init(const std::string& root_dir, const std::string& usid);
+    // Initialize unified scheduler from rapidjson doc.
+    // Return 0 on success, -1 ohterwise.
+    int init(const USConfig& config);
     // Process user request and generate response.
     // Returns 0 on success, -1 otherwise.
     int run(USRequest& request, USResponse& response) const;
 
 private:
-    BackendEngine _backend_engine;
-    RankEngine _rank_engine;
     FlowEngine _flow_engine;
 };
 

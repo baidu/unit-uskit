@@ -17,7 +17,7 @@
 
 namespace uskit {
 
-Backend::Backend() : _channel(new BRPC_NAMESPACE::Channel) {}
+Backend::Backend() : _channel(std::make_shared<BRPC_NAMESPACE::Channel>()) {}
 
 Backend::~Backend() {}
 
@@ -57,8 +57,6 @@ int Backend::init(const BackendConfig& config) {
         if (protocol == "http") {
             if (!_is_dynamic) {
                 request_config.reset(new HttpRequestConfig);
-            } else if (request_template.has_host_ip_port()) {
-                request_config.reset(new HostDynHttpRequestConfig);
             } else {
                 request_config.reset(new DynamicHttpRequestConfig);
             }
@@ -96,11 +94,11 @@ int Backend::init(const BackendConfig& config) {
     return 0;
 }
 
-BRPC_NAMESPACE::Channel* Backend::channel() const {
-    return _channel.get();
+std::shared_ptr<BRPC_NAMESPACE::Channel> Backend::channel() const {
+    return _channel;
 }
 
-const bool Backend::is_dynamic() const {
+bool Backend::is_dynamic() const {
     return _is_dynamic;
 }
 

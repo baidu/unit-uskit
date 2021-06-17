@@ -16,6 +16,8 @@
 """
 Options for generating conf of USKit
 """
+
+
 options = {
     # server address
     # 服务器地址

@@ -39,7 +39,7 @@ public:
     int init(const BackendConfig& config);
 
     // Obtain the channel associated with this backend.
-    BRPC_NAMESPACE::Channel* channel() const;
+    std::shared_ptr<BRPC_NAMESPACE::Channel> channel() const;
     // Obtain the protocol associated with this backend.
     // Currently supported protocols: HTTP, Redis.
     const BRPC_NAMESPACE::AdaptiveProtocolType protocol() const;
@@ -51,11 +51,11 @@ public:
     const BackendResponseConfig* response_config(const std::string& name) const;
     // Obtain all service names associated with this backend.
     const std::vector<std::string>& services() const;
-    const bool is_dynamic() const;
+    bool is_dynamic() const;
 
 private:
     // Underlying Channel
-    std::unique_ptr<BRPC_NAMESPACE::Channel> _channel;
+    std::shared_ptr<BRPC_NAMESPACE::Channel> _channel;
     // Backend services
     std::vector<std::string> _services;
     // Dynamic requests FLAG, default is false

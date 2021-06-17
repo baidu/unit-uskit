@@ -20,6 +20,7 @@ from __future__ import print_function
 from string import Template
 from options import options
 
+
 class ConfTemplate(Template):
     """
     String template with @ delimiter
@@ -47,7 +48,7 @@ def generate_redis_backend_conf(fout):
 
 def generate_dmkit_backend(fout):
     """
-    Generate DMKit backend
+    Generate DM Kit backend
     """
     with open('./conf_templates/unit_backend.template') as backend_fin, \
          open('./conf_templates/unit_service.template') as service_fin:
@@ -123,6 +124,7 @@ def generate_flow_conf():
         recall_skill = '\n'.join(['    recall: "{}"'.format(x) for x in options['skill_rank']])
         template = ConfTemplate(fin.read())
         print(template.substitute({'recall_skill' : recall_skill}), file=fout)
+
 
 if __name__ == "__main__":
     generate_backend_conf()

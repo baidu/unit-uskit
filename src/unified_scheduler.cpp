@@ -20,67 +20,29 @@ namespace uskit {
 UnifiedScheduler::UnifiedScheduler() {
 }
 
-UnifiedScheduler::~UnifiedScheduler() {
-}
+UnifiedScheduler::~UnifiedScheduler() {}
 
 int UnifiedScheduler::init(const std::string& root_dir, const std::string& usid) {
-    // Assemble configuration paths.
-    std::string backend_config_file(root_dir + "/" + usid + "/" + "backend.conf");
-    std::string rank_config_file(root_dir + "/" + usid + "/" + "rank.conf");
-    std::string flow_config_file(root_dir + "/" + usid + "/" + "flow.conf");
 
-    // Parse backend configuration.
-    BackendEngineConfig backend_config;
-    if (ReadProtoFromTextFile(backend_config_file, &backend_config) != 0) {
-        LOG(ERROR) << "Failed to parse backend config, usid [" << usid << "]";
+    if (_flow_engine.init(root_dir, usid) != 0) {
         return -1;
     }
+    return 0;
+}
 
-    // Initialize backend engine.
-    LOG(INFO) << "Initializing backend engine of usid [" << usid << "]";
-    if (_backend_engine.init(backend_config) != 0) {
-        LOG(ERROR) << "Failed to initialize backend engine, usid [" << usid << "]";
+int UnifiedScheduler::init(const USConfig& config) {
+    if (_flow_engine.init(config) != 0) {
         return -1;
     }
-
-    // Parse rank configuration.
-    RankEngineConfig rank_config;
-    if (ReadProtoFromTextFile(rank_config_file, &rank_config) != 0) {
-        LOG(ERROR) << "Failed to parse rank config, usid [" << usid << "]";
-        return -1;
-    }
-
-    // Initialize rank engine.
-    LOG(INFO) << "Initializing rank engine of usid [" << usid << "]";
-    if (_rank_engine.init(rank_config) != 0) {
-        LOG(ERROR) << "Failed to initialize rank engine, usid [" << usid << "]";
-        return -1;
-    }
-
-    // Parse flow configuration.
-    FlowEngineConfig flow_config;
-    if (ReadProtoFromTextFile(flow_config_file, &flow_config) != 0) {
-        LOG(ERROR) << "Failed to parse flow config, usid [" << usid << "]";
-        return -1;
-    }
-
-    // Initialize flow engine.
-    LOG(INFO) << "Initializing flow engine of usid [" << usid << "]";
-    if (_flow_engine.init(flow_config) != 0) {
-        LOG(ERROR) << "Failed to initialize flow engine, usid [" << usid << "]";
-        return -1;
-    }
-
     return 0;
 }
 
 int UnifiedScheduler::run(USRequest& request, USResponse& response) const {
     // Run the chat flow.
-    if (_flow_engine.run(request, response, &_backend_engine, &_rank_engine) != 0) {
+    if (_flow_engine.run(request, response) != 0) {
         US_LOG(ERROR) << "Failed to run flow engine";
         return -1;
     }
-
     return 0;
 }
 

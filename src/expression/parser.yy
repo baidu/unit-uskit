@@ -77,6 +77,7 @@ namespace expression {
 %token DOLLAR "$";
 %token NOT "!";
 %token QUESTION "?";
+%token DOT ".";
 
 %token NULL "null";
 %token TRUE "true";
@@ -94,6 +95,8 @@ namespace expression {
 %type < Dict* > dict;
 %type < KeyValueMap > key_value_map;
 %type < KeyValue > key_value;
+%type < CallExpression* > func_call;
+%type < CallExpression* > fluent_interface;
 
 %start program;
 
@@ -132,7 +135,6 @@ expr:
   | expr "?" expr ":" expr %prec "?"{ $$ = new TernaryExpression($1, $3, $5); }
   | "(" expr ")"                    { std::swap($$, $2); }
   | "!" expr %prec "!"              { $$ = new NotExpression($2); }
-  | IDENTIFIER "(" expr_list ")"    { $$ = new CallExpression($1, $3); }
   | "$" IDENTIFIER                  { $$ = new VariableExpression($2); }
   | "null"                          { $$ = new Null(); }
   | "integer"                       { $$ = new Integer(std::stoi($1)); }
@@ -143,6 +145,7 @@ expr:
   | boolean                         { $$ = $1; }
   | dict                            { $$ = $1; }
   | array                           { $$ = $1; }
+  | fluent_interface                { $$ = $1; }
   ;
 
 boolean:
@@ -152,6 +155,15 @@ boolean:
 
 array:
     "[" expr_list "]"               { $$ = new Array($2); }
+  ;
+
+fluent_interface:
+    func_call                       { std::swap($$, $1); }
+  | fluent_interface "." func_call  { std::swap($$, $1); $$->set_next(std::move($3)); }
+  ;
+
+func_call:
+    IDENTIFIER "(" expr_list ")"    { $$ = new CallExpression($1, $3); }
   ;
 
 expr_list:

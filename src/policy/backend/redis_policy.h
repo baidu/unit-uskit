@@ -24,15 +24,12 @@ namespace backend {
 // Default Redis request policy.
 class RedisRequestPolicy : public BackendRequestPolicy {
 public:
+    RedisRequestPolicy() : BackendRequestPolicy() {}
     int init(const RequestConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
-    int run(
-            const BackendEngine* backend_engine,
-            BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const;
+
 private:
-    const Backend* _backend;
+    std::shared_ptr<BRPC_NAMESPACE::Channel> _channel;
     RedisRequestConfig _request_config;
 };
 
@@ -41,12 +38,13 @@ class RedisResponsePolicy : public BackendResponsePolicy {
 public:
     int init(const ResponseConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
+
 private:
     BackendResponseConfig _response_config;
 };
 
-} // namespace backend
-} // namespace policy
-} // namespace uskit
+}  // namespace backend
+}  // namespace policy
+}  // namespace uskit
 
-#endif // USKIT_POLICY_BACKEND_REDIS_POLICY_H
+#endif  // USKIT_POLICY_BACKEND_REDIS_POLICY_H

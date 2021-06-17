@@ -499,7 +499,7 @@ int NotExpression::run(ExpressionContext& context, rapidjson::Value& value) {
 }
 
 CallExpression::CallExpression(const std::string& func_name,
-               std::vector<Expression*>& args) : _func_name(func_name) {
+               std::vector<Expression*>& args) : _func_name(func_name), _next(nullptr) {
     for (auto & arg : args) {
         _args.emplace_back(arg);
     }
@@ -508,11 +508,25 @@ CallExpression::CallExpression(const std::string& func_name,
 CallExpression::~CallExpression() {
 }
 
+int CallExpression::set_next(CallExpression* next) {
+    _next.reset(next);
+    return 0;
+}
+
 int CallExpression::run(ExpressionContext& context, rapidjson::Value& value) {
+    rapidjson::Value v;
+    return run(context, value, v);
+}
+
+int CallExpression::run(ExpressionContext& context, rapidjson::Value& value, const rapidjson::Value& input) {
     rapidjson::Document::AllocatorType& allocator = context.allocator();
 
     rapidjson::Value arg_values;
     arg_values.SetArray();
+    if (!input.IsNull()) {
+        rapidjson::Value copy_value(input, allocator);
+        arg_values.PushBack(copy_value, allocator);
+    }
 
     for (auto & arg : _args) {
         rapidjson::Value arg_value;
@@ -522,15 +536,26 @@ int CallExpression::run(ExpressionContext& context, rapidjson::Value& value) {
         arg_values.PushBack(arg_value, allocator);
     }
 
-    rapidjson::Document return_value(&allocator);
+    rapidjson::Document middle_value(&allocator);
     // Find function by name and run with evaluated args
     US_DLOG(INFO) << "run function [" << _func_name << "]";
     int ret = function::FunctionManager::instance().call_function(_func_name,
                                                                   arg_values,
-                                                                  return_value);
+                                                                  middle_value);
     if (ret != 0) {
         US_LOG(ERROR) << "Failed to run function [" << _func_name << "]";
         return -1;
+    }
+
+    rapidjson::Document return_value(&allocator);
+    if (_next) {
+        ret = _next->run(context, return_value, middle_value);
+        if (ret != 0) {
+            US_LOG(ERROR) << "Failed to run the function after [" << _func_name << "]";
+            return -1;
+        }
+    } else {
+        return_value.Swap(middle_value);
     }
 
     value.Swap(return_value);

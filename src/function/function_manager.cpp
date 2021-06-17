@@ -20,7 +20,6 @@
 namespace uskit {
 namespace function {
 
-
 FunctionManager::FunctionManager() {}
 
 FunctionManager& FunctionManager::instance() {

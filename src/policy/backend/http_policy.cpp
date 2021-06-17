@@ -21,6 +21,7 @@ namespace backend {
 
 int HttpRequestPolicy::init(const RequestConfig& config, const Backend* backend) {
     _backend = backend;
+    _channel = backend->channel();
     const BackendRequestConfig* template_config = nullptr;
     if (config.has_include()) {
         template_config = backend->request_config(config.include());
@@ -33,9 +34,19 @@ int HttpRequestPolicy::init(const RequestConfig& config, const Backend* backend)
     return 0;
 }
 
+int HttpRequestPolicy::call_method(
+        BRPC_NAMESPACE::Controller& brpc_cntl,
+        BackendController* cntl,
+        expression::ExpressionContext& request_context) const {
+    US_DLOG(INFO) << "context name: " << request_context.name();
+    _channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_done.get());
+    return 0;
+}
+
 int HttpRequestPolicy::run(BackendController* cntl) const {
     BRPC_NAMESPACE::Controller& brpc_cntl = cntl->brpc_controller();
-    expression::ExpressionContext request_context("request block", cntl->context());
+    expression::ExpressionContext request_context(
+            "request block " + cntl->service_name(), cntl->context());
 
     // Generate request config dynamically.
     if (_request_config.run(request_context) != 0) {
@@ -109,109 +120,7 @@ int HttpRequestPolicy::run(BackendController* cntl) const {
         }
     }
 
-    BRPC_NAMESPACE::Channel* channel = _backend->channel();
-    if (cntl->get_call_ids().empty()) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
-    } else if (!cntl->get_recall_next().empty()) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
-    } else if (
-            cntl->get_cancel_order() == std::string("ALL") ||
-            cntl->get_cancel_order() == std::string("PRIORITY") ||
-                cntl->get_cancel_order() == std::string("HIERACHY")) {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_done.get());
-    } else {
-        channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, BRPC_NAMESPACE::DoNothing());
-        US_LOG(WARNING) << "Fail to run cancel policy, no correct order given, ignored as NONE";
-        return 0;
-    }
-
-    return 0;
-}
-
-int HttpRequestPolicy::run(
-        const BackendEngine* backend_engine,
-        BackendController* cntl,
-        const std::unordered_map<std::string, FlowConfig>* flow_map,
-        const RankEngine* rank_engine) const {
-    BRPC_NAMESPACE::Controller& brpc_cntl = cntl->brpc_controller();
-    expression::ExpressionContext request_context(
-            "request block " + cntl->service_name(), cntl->context());
-
-    // Generate request config dynamically.
-    if (_request_config.run(request_context) != 0) {
-        US_LOG(ERROR) << "Failed to generate HTTP request config";
-        return -1;
-    }
-    US_DLOG(INFO) << "Generated HTTP request config: " << request_context.str();  // CORE
-
-    rapidjson::Value* http_uri = request_context.get_variable("http_uri");
-    if (http_uri == nullptr) {
-        US_LOG(ERROR) << "Required HTTP URI";
-        return -1;
-    } else {
-        brpc_cntl.http_request().uri() = http_uri->GetString();
-    }
-
-    rapidjson::Value* http_method = request_context.get_variable("http_method");
-    if (http_method == nullptr) {
-        US_LOG(ERROR) << "Required HTTP method";
-        return -1;
-    } else if (http_method->GetString() == std::string("post")) {
-        brpc_cntl.http_request().set_method(BRPC_NAMESPACE::HTTP_METHOD_POST);
-    }
-
-    // Set HTTP Headers
-    rapidjson::Value* http_header = request_context.get_variable("http_header");
-    if (http_header != nullptr) {
-        std::string content_type_key("Content-Type");
-        for (auto& m : http_header->GetObject()) {
-            if (m.value.IsNull()) {
-                continue;
-            }
-            std::string value;
-            if (m.value.IsString()) {
-                value = m.value.GetString();
-            } else {
-                value = json_encode(m.value);
-            }
-            if (m.name.GetString() == content_type_key) {
-                brpc_cntl.http_request().set_content_type(value);
-            } else {
-                brpc_cntl.http_request().SetHeader(m.name.GetString(), value);
-            }
-        }
-    }
-
-    // Set HTTP Query
-    rapidjson::Value* http_query = request_context.get_variable("http_query");
-    if (http_query != nullptr) {
-        for (auto& m : http_query->GetObject()) {
-            if (m.value.IsNull()) {
-                continue;
-            }
-            std::string value;
-            if (m.value.IsString()) {
-                value = m.value.GetString();
-            } else {
-                value = json_encode(m.value);
-            }
-            brpc_cntl.http_request().uri().SetQuery(m.name.GetString(), value);
-        }
-    }
-
-    // Set HTTP Body
-    // Only support JSON format.
-    rapidjson::Value* http_body = request_context.get_variable("http_body");
-    if (http_body != nullptr) {
-        const std::string& content_type = brpc_cntl.http_request().content_type();
-        if (content_type.find("application/json") != std::string::npos) {
-            brpc_cntl.request_attachment().append(json_encode(*http_body));
-        }
-    }
-
-    BRPC_NAMESPACE::Channel* channel = _backend->channel();
-    channel->CallMethod(nullptr, &brpc_cntl, nullptr, nullptr, cntl->_jump_done.get());
-    return 0;
+    return call_method(brpc_cntl, cntl, request_context);
 }
 
 int HttpResponsePolicy::init(const ResponseConfig& config, const Backend* backend) {

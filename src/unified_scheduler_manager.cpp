@@ -32,6 +32,7 @@ int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig& config) {
     register_policy();
 
     // Load unified schedulers that are specified in configuration.
+    _root_dir = config.root_dir();
     for (int i = 0; i < config.load_size(); ++i) {
         const std::string& usid = config.load(i);
         UnifiedScheduler us;
@@ -53,11 +54,33 @@ int UnifiedSchedulerManager::init(const UnifiedSchedulerConfig& config) {
             _params_default.emplace(param_name, required_param.default_value());
         } else if (required_param.has_param_path()) {
             _params_path.emplace(param_name, required_param.param_path());
+        } else if (required_param.has_param_expr()) {
+            expression::Driver driver;
+            if (driver.parse("", required_param.param_expr()) != 0) {
+                LOG(ERROR) << "Failed to parse expression param_expr: "
+                           << required_param.param_expr();
+                return -1;
+            }
+            _params_expr.emplace(param_name, driver.get_expression());
         } else {
             LOG(ERROR) << "Failed to init uskit with required parameter [" << param_name << "]";
             return -1;
         }
     }
+    if (config.has_input_config_path()) {
+        _input_config_path = config.input_config_path();
+        if (_input_config_path[0] != '/') {
+            _input_config_path = "/" + _input_config_path;
+        }
+        // Root path.
+        // if (_input_config_path == "/") {
+        //    _input_config_path = "";
+        //}
+    } else {
+        _input_config_path = "";
+    }
+    _editable_response = config.editable_response();
+
     return 0;
 }
 
@@ -74,21 +97,65 @@ int UnifiedSchedulerManager::run(BRPC_NAMESPACE::Controller* cntl) {
     }
     parse_request_tm.stop();
     LOG(INFO) << "REQUEST: " << json_encode(request);
+    if (cntl->http_request().GetHeader("X_BD_LOGID") != NULL) {
+        std::string global_logid = "";
+        global_logid = *(cntl->http_request().GetHeader("X_BD_LOGID"));
+        if (replace_all(global_logid, "%", "%%") != 0) {
+            US_LOG(WARNING) << "logid replace error";
+        }
+        UnifiedSchedulerThreadData* td =
+                static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
+        td->set_logid(global_logid);
+    }
     // Run unified scheduler of specific usid.
     std::string usid = request["usid"].GetString();
     auto us_iter = _us_map.find(usid);
 
+    USResponse response(rapidjson::kObjectType);
+
+    UnifiedScheduler us;
     if (us_iter != _us_map.end()) {
-        USResponse response(rapidjson::kObjectType);
         if (us_iter->second.run(request, response) != 0) {
             send_response(cntl, nullptr, ErrorCode::INTERNAL_SERVER_ERROR);
             return -1;
         }
-        send_response(cntl, &response);
+    } else if (_input_config_path != "") {
+        if (_input_config_path == "/") {
+            _input_config_path = "";
+        }
+        rapidjson::Pointer pointer(_input_config_path.c_str());
+
+        rapidjson::Value* value = rapidjson::GetValueByPointer(request, pointer);
+        if (value == nullptr || !value->IsObject()) {
+            LOG(ERROR) << "Fail to find input config at: " << _input_config_path;
+            send_response(cntl, nullptr, ErrorCode::USID_NOT_FOUND);
+            return -1;
+        }
+        USConfig config;
+        config.CopyFrom(*value, config.GetAllocator());
+
+        Timer us_load_tm("us_load_t_ms");
+        us_load_tm.start();
+        if (us.init(config) != 0) {
+            LOG(ERROR) << "Failed to init app [" << usid << "]";
+            send_response(cntl, nullptr, ErrorCode::USID_NOT_FOUND);
+            return -1;
+        }
+        us_load_tm.stop();
+        UnifiedSchedulerThreadData* td =
+                static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
+        LOG(WARNING) << "log: " << td->get_log();
+        if (us.run(request, response) != 0) {
+            send_response(cntl, nullptr, ErrorCode::INTERNAL_SERVER_ERROR);
+            return -1;
+        }
     } else {
+        LOG(ERROR) << "Fail to find usid: [" << usid << "]";
         send_response(cntl, nullptr, ErrorCode::USID_NOT_FOUND);
         return -1;
     }
+
+    send_response(cntl, &response);
 
     return 0;
 }
@@ -108,14 +175,29 @@ int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USR
         std::string header_val = header_iter->second;
         rapidjson::Pointer(path.c_str()).Set(request, header_val.c_str());
     }
+    std::string ip_addr = BUTIL_NAMESPACE::ip2str(cntl->remote_side().ip).c_str();
+    std::string path = "/__HEADER__/__IP__";
+    rapidjson::Pointer(path.c_str()).Set(request, ip_addr.c_str());
+    for (auto qs_iter = cntl->http_request().uri().QueryBegin();
+         qs_iter != cntl->http_request().uri().QueryEnd();
+         ++qs_iter) {
+        std::string path = "/__QUERYSTRING__/" + qs_iter->first;
+        std::string qs_val = qs_iter->second;
+        rapidjson::Pointer(path.c_str()).Set(request, qs_val.c_str());
+    }
 
     // Check required parameters
     UnifiedSchedulerThreadData* td =
             static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
+    USRequest toy_request(rapidjson::kObjectType);
+    expression::ExpressionContext context("context", toy_request.GetAllocator());
+    rapidjson::Value copyvalue(request, toy_request.GetAllocator());
+    context.set_variable("request", copyvalue);
     for (auto& param : _required_params) {
         std::string value = "";
         auto _params_default_iter = _params_default.find(param.c_str());
         auto _params_value_path_iter = _params_path.find(param.c_str());
+        auto _params_expr_iter = _params_expr.find(param.c_str());
         if (_params_default_iter != _params_default.end()) {
             value = _params_default_iter->second;
         } else if (_params_value_path_iter != _params_path.end()) {
@@ -137,8 +219,31 @@ int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USR
                         ErrorMessage.at(ErrorCode::MISSING_PARAM) + ": " + param +
                                 ", supposed to be at " + path);
                 return -1;
+            } else if (req_value->IsString()) {
+                value = req_value->GetString();
             } else {
                 value = json_encode(*req_value);
+            }
+
+        } else if (_params_expr_iter != _params_expr.end()) {
+            rapidjson::Value rapid_value;
+            if (_params_expr_iter->second->run(context, rapid_value) != 0) {
+                send_response(
+                        cntl,
+                        nullptr,
+                        ErrorCode::INVALID_JSON,
+                        ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param);
+                return -1;
+            } else if (!rapid_value.IsString()) {
+                send_response(
+                        cntl,
+                        nullptr,
+                        ErrorCode::INVALID_JSON,
+                        ErrorMessage.at(ErrorCode::INVALID_JSON) + ": " + param +
+                                "should be string");
+                return -1;
+            } else {
+                value = rapid_value.GetString();
             }
 
         } else if (!request.HasMember(param.c_str())) {
@@ -160,6 +265,9 @@ int UnifiedSchedulerManager::parse_request(BRPC_NAMESPACE::Controller* cntl, USR
         }
         if (param == "logid") {
             // Setup logid of this request.
+            if (replace_all(value, "%", "%%") != 0) {
+                US_LOG(WARNING) << "logid replace error";
+            }
             td->set_logid(value);
         } else {
             td->add_log_entry(param, value);
@@ -187,6 +295,21 @@ int UnifiedSchedulerManager::send_response(
     }
     // Setup HTTP status.
     cntl->http_response().set_status_code(http_status_code);
+    if (response != nullptr) {
+        for (rapidjson::Value::MemberIterator itr = response->MemberBegin();
+             itr != response->MemberEnd();) {
+            if (std::string(itr->name.GetString()).find("__TMP__") == 0) {
+                itr = response->EraseMember(itr);
+            } else {
+                itr++;
+            }
+        }
+    }
+    if (_editable_response && error_code == 0 && response != nullptr) {
+        std::string response_json = json_encode(*response);
+        cntl->response_attachment().append(response_json);
+        return 0;
+    }
 
     rapidjson::Document final_response;
     final_response.SetObject();
