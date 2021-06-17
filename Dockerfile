@@ -4,9 +4,7 @@ WORKDIR /unit-uskit
 
 COPY . /unit-uskit
 
-RUN apt-get update && apt-get install -y --no-install-recommends sudo cmake wget vim curl ca-certificates
-
-RUN update-ca-certificates
+RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list
 
 RUN sh deps.sh ubuntu
 

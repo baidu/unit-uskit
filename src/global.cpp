@@ -23,9 +23,11 @@
 #include "policy/flow/default_policy.h"
 #include "policy/flow/recurrent_policy.h"
 #include "policy/flow/global_policy.h"
+#include "policy/flow/levels_policy.h"
 #include "policy/rank/default_policy.h"
 
 #include "function/builtin.h"
+#include "function/str_function.h"
 
 namespace uskit {
 
@@ -52,6 +54,15 @@ void register_function() {
     REGISTER_FUNCTION("md5", function::md5_hash);
     REGISTER_FUNCTION("sha1", function::sha1_hash);
     REGISTER_FUNCTION("time", function::time);
+    REGISTER_FUNCTION("hmac_sha1", function::hmac_sha1);
+    REGISTER_FUNCTION("base64_encode", function::base64_encode);
+    REGISTER_FUNCTION("nonce", function::rand_str);
+    REGISTER_FUNCTION("query_encode", function::query_encode);
+    REGISTER_FUNCTION("split", function::str_split);
+    REGISTER_FUNCTION("str_slice", function::str_slice);
+    REGISTER_FUNCTION("join", function::array_join);
+    REGISTER_FUNCTION("str_length", function::str_length);
+    REGISTER_FUNCTION("str_find", function::str_find);
 }
 
 void register_policy() {
@@ -72,8 +83,11 @@ void register_policy() {
 
     // Flow policy
     REGISTER_FLOW_POLICY("default", policy::flow::DefaultPolicy);
-    REGISTER_FLOW_POLICY("recurrent", policy::flow::RecurrentPolicy);
-    REGISTER_FLOW_POLICY("globalcancel", policy::flow::GlobalPolicy);
+    REGISTER_FLOW_POLICY("recurrent", policy::flow::AsyncInsideNodePolicy);
+    REGISTER_FLOW_POLICY("node_async", policy::flow::AsyncInsideNodePolicy);
+    REGISTER_FLOW_POLICY("globalcancel", policy::flow::AsyncGlobalPolicy);
+    REGISTER_FLOW_POLICY("global_async", policy::flow::AsyncGlobalPolicy);
+    REGISTER_FLOW_POLICY("leveldeliver", policy::flow::CascadeAsyncPolicy);
 
     // Rank policy
     REGISTER_RANK_POLICY("default", policy::rank::DefaultPolicy);

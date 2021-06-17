@@ -24,22 +24,19 @@ message RequestConfig {
         repeated string arg = 2;
     }
     repeated RedisCommandConfig redis_cmd = 9;
-    // Nshead
-    optional string data_encode = 10;
     // Dynamic HTTP
     repeated KVE dynamic_args = 11;
     optional string dynamic_args_node = 12 [default=""];
     optional string dynamic_args_path = 13 [default="/"];
     optional string host_ip_port = 14;
 }
-
+message IfConfig {
+    repeated string cond = 1;
+    repeated KVE def = 2;
+    repeated KVE output = 3;
+    optional string next = 4;
+}
 message ResponseConfig {
-    message IfConfig {
-        repeated string cond = 1;
-        repeated KVE def = 2;
-        repeated KVE output = 3;
-    }
-
     optional string name = 1;
     optional string include = 2;
     repeated KVE def = 3;
@@ -53,6 +50,7 @@ message ServiceConfig {
     optional string response_policy = 3 [default="default"];
     optional RequestConfig request = 4;
     optional ResponseConfig response = 5;
+    repeated string success_flag = 6;
 }
 
 message BackendConfig {
@@ -91,14 +89,23 @@ message RankNodeConfig {
 message RankEngineConfig {
     repeated RankNodeConfig rank = 1;
 }
+message InterveneConfig {
+    required string source = 1;
+    optional string intervene_file = 2;
+}
+
+message InterveneRule {
+    required string pattern = 1;
+    required string target = 2;
+    optional bool entire_match = 3 [default=true];
+    optional bool service_intervene = 4 [default=true];
+}
+
+message InterveneFileConfig {
+    repeated InterveneRule rule = 1;
+}
 
 message FlowNodeConfig {
-    message IfConfig {
-        repeated string cond = 1;
-        repeated KVE def = 2;
-        repeated KVE output = 3;
-        optional string next = 4;
-    }
     message GlobalCancelConfig {
         repeated string cond = 1;
         repeated KVE def = 2;
@@ -119,6 +126,15 @@ message FlowNodeConfig {
         }
         repeated RecallService recall_service = 3;
     }
+    message DeliverConfig {
+        required uint32 class_num = 1;
+        required string classify_service = 2;
+        message DeliverService {
+            required string service_name = 1;
+            required string threshold = 2;
+        }
+        repeated DeliverService deliver_service = 3;
+    }
     required string name = 1;
     repeated KVE def = 2;
     repeated string recall = 3;
@@ -129,6 +145,8 @@ message FlowNodeConfig {
     optional string recall_expr = 9;
     optional RecallConfig recall_config = 10;
     optional GlobalCancelConfig global_cancel_config = 11;
+    repeated DeliverConfig deliver_config = 12;
+    optional InterveneConfig intervene_config = 13;
 
 }
 
@@ -144,6 +162,9 @@ message UnifiedSchedulerConfig {
         required string param_name = 3;
         optional string param_path = 4;
         optional string default_value = 5;
+        optional string param_expr = 6;
     }
-    repeated RequiredParam required_params = 6;
+    repeated RequiredParam required_params = 7;
+    optional bool editable_response = 8 [default=false];
+    optional string input_config_path = 9;
 }

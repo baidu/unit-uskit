@@ -73,7 +73,15 @@ private:
     BUTIL_NAMESPACE::Timer _timer;
 };
 
+int reverse_index(int r_index, int size);
 
+// Calculate base16 digest by char*
+std::string digest_from_char(const void* data, size_t length, const std::string& type);
+// Convert digest to base16
+std::string digest_to_base16(const unsigned char* data, size_t length);
+
+// Fills |output_length| bytes of |output| with random data. (Copy from baidu-rpc master)
+void fast_rand_bytes(void* output, size_t output_length);
 
 }  // namespace uskit
 

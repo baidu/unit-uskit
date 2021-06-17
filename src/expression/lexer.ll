@@ -163,6 +163,10 @@
     return uskit::expression::Parser::make_QUESTION(_loc);
 }
 
+"." {
+    return uskit::expression::Parser::make_DOT(_loc);
+}
+
 [\t ] {
     /* ignore whitespace */
 }

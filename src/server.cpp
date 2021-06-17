@@ -22,28 +22,32 @@
 #include "common.h"
 
 DEFINE_int32(port, 8888, "TCP port of unified scheduler server");
-DEFINE_int32(idle_timeout_s, -1, "Connection will be closed if there is no "
-             "read/write operations during the last `idle_timeout_s'");
+DEFINE_int32(internal_port, 12305, "HTTP port to access builtin services");
+DEFINE_int32(
+        idle_timeout_s,
+        -1,
+        "Connection will be closed if there is no "
+        "read/write operations during the last `idle_timeout_s'");
+DEFINE_string(conf_dir, "./conf", "Directory of configuration file");
 DEFINE_string(us_conf, "./conf/us.conf", "Path of unified scheduler configuration file");
+DEFINE_string(unit_log_conf, "unit_log.conf", "Path of unit log configuration file");
 DEFINE_string(url_path, "/us", "URL path of unified scheduler service");
-DEFINE_bool(log_to_file, false, "Log to file");
 
-namespace uskit
-{
+namespace uskit {
 
 class UnifiedSchedulerServiceImpl : public UnifiedSchedulerService {
 public:
     virtual ~UnifiedSchedulerServiceImpl() {}
-    virtual void run(google::protobuf::RpcController* cntl_base,
-                     const HttpRequest*,
-                     HttpResponse*,
-                     google::protobuf::Closure* done) {
+    virtual void run(
+            google::protobuf::RpcController* cntl_base,
+            const HttpRequest*,
+            HttpResponse*,
+            google::protobuf::Closure* done) {
         // This object helps you to call done->Run() in RAII style. If you need
         // to process the request asynchronously, pass done_guard.release().
         BRPC_NAMESPACE::ClosureGuard done_guard(done);
 
-        BRPC_NAMESPACE::Controller* cntl =
-            static_cast<BRPC_NAMESPACE::Controller*>(cntl_base);
+        BRPC_NAMESPACE::Controller* cntl = static_cast<BRPC_NAMESPACE::Controller*>(cntl_base);
 
         Timer total_tm("total_t_ms");
         total_tm.start();
@@ -54,7 +58,8 @@ public:
 
         total_tm.stop();
 
-        UnifiedSchedulerThreadData* td = static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
+        UnifiedSchedulerThreadData* td =
+                static_cast<UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data());
         US_LOG(NOTICE) << td->get_log();
         td->reset();
     }
@@ -66,15 +71,16 @@ public:
 
         return 0;
     }
-    
+
 private:
     UnifiedSchedulerManager _us_manager;
 };
 
-} // namespace uskit
+}  // namespace uskit
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // Parse gflags. We recommend you to use gflags as well.
+    GFLAGS_NS::SetCommandLineOption("flagfile", "conf/gflags.conf");
     GFLAGS_NS::ParseCommandLineFlags(&argc, &argv, true);
 
     uskit::UnifiedSchedulerConfig config;
@@ -97,9 +103,7 @@ int main(int argc, char *argv[]) {
     // service is put on stack, we don't want server to delete it, otherwise
     // use BRPC_NAMESPACE::SERVER_OWNS_SERVICE.
     std::string url_path = FLAGS_url_path + " => run";
-    if (server.AddService(&us_service, 
-                          BRPC_NAMESPACE::SERVER_DOESNT_OWN_SERVICE,
-                          url_path) != 0) {
+    if (server.AddService(&us_service, BRPC_NAMESPACE::SERVER_DOESNT_OWN_SERVICE, url_path) != 0) {
         LOG(ERROR) << "Failed to add unified scheduler service";
         return -1;
     }
@@ -109,6 +113,7 @@ int main(int argc, char *argv[]) {
 
     // Start the server.
     BRPC_NAMESPACE::ServerOptions options;
+    options.internal_port = FLAGS_internal_port;
     options.idle_timeout_sec = FLAGS_idle_timeout_s;
     options.thread_local_data_factory = &thread_data_factory;
     if (server.Start(FLAGS_port, &options) != 0) {

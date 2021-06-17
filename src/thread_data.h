@@ -21,8 +21,8 @@
 #include "brpc.h"
 #include "butil.h"
 
-namespace uskit
-{
+namespace uskit {
+
 // Thread local data for log entries.
 class UnifiedSchedulerThreadData {
 public:
@@ -70,6 +70,7 @@ public:
         delete static_cast<UnifiedSchedulerThreadData*>(d);
     }
 };
-} // namespace uskit
 
-#endif // USKIT_THREAD_DATA_H
+}  // namespace uskit
+
+#endif  // USKIT_THREAD_DATA_H

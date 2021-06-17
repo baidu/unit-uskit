@@ -24,6 +24,8 @@ namespace uskit {
 typedef rapidjson::Document USRequest;
 typedef rapidjson::Document USResponse;
 
+typedef rapidjson::Document USConfig;
+
 typedef rapidjson::Document BackendResponse;
 
 typedef rapidjson::Value RankCandidate;
@@ -31,18 +33,32 @@ typedef rapidjson::Value RankResult;
 
 typedef std::pair<BRPC_NAMESPACE::CallId, int> CallIdPriorityPair;
 
-} // namespace uskit
+const std::string KVE_DELIMETER = "/";
+const bool KVE_IS_ROOT2PATH = true;
 
-// Wrappter for logging with logid tracking
-#define US_LOG(severity) \
-    LOG(severity) << "logid=" << (BRPC_NAMESPACE::thread_local_data() == nullptr ? "" : \
-        (static_cast<uskit::UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data()))->logid()) \
-        << " "
+const std::vector<std::string> TypeString =
+        {"Null", "False", "True", "Object", "Array", "String", "Number"};
 
-// Wrappter for debug logging with logid tracking
-#define US_DLOG(severity) \
-    DLOG(severity) << "logid=" << (BRPC_NAMESPACE::thread_local_data() == nullptr ? "" : \
-        (static_cast<uskit::UnifiedSchedulerThreadData*>(BRPC_NAMESPACE::thread_local_data()))->logid()) \
-        << " "
+}  // namespace uskit
 
-#endif // USKIT_COMMON_H
+// Wrapper for logging with logid tracking
+#define US_LOG(severity)                                                          \
+    LOG(severity) << "logid="                                                     \
+                  << (BRPC_NAMESPACE::thread_local_data() == nullptr              \
+                              ? ""                                                \
+                              : (static_cast<uskit::UnifiedSchedulerThreadData*>( \
+                                         BRPC_NAMESPACE::thread_local_data()))    \
+                                        ->logid())                                \
+                  << " "
+
+// Wrapper for debug logging with logid tracking
+#define US_DLOG(severity)                                                          \
+    DLOG(severity) << "logid="                                                     \
+                   << (BRPC_NAMESPACE::thread_local_data() == nullptr              \
+                               ? ""                                                \
+                               : (static_cast<uskit::UnifiedSchedulerThreadData*>( \
+                                          BRPC_NAMESPACE::thread_local_data()))    \
+                                         ->logid())                                \
+                   << " "
+
+#endif  // USKIT_COMMON_H

@@ -42,11 +42,6 @@ public:
     // Returns 0 on success, -1 otherwise.
     int build_request(BackendController* cntl) const;
 
-    int build_request(
-            const BackendEngine* backend_engine,
-            BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const;
     // Parse response received from RPC
     // Returns 0 on success, -1 otherwise.
     int parse_response(BackendController* cntl) const;
@@ -55,8 +50,10 @@ public:
     // Obtain the protocol associated with this service.
     // Currently supported protocols: HTTP, Redis.
     const BRPC_NAMESPACE::AdaptiveProtocolType protocol() const;
+    // Evaluate success flag
+    int run_success_flag(expression::ExpressionContext& context ,bool& bool_value) const;
 
-    const bool is_dynamic() const;
+    bool is_dynamic() const;
 
 private:
     // Name of this service
@@ -65,6 +62,8 @@ private:
     Backend* _backend;
     // Dynamic requests FLAG
     bool _is_dynamic;
+    // Flags (AND-statements) define service success
+    KEVec _condition;
 
     // Policy for building backend request
     std::unique_ptr<policy::BackendRequestPolicy> _request_policy;

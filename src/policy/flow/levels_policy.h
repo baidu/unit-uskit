@@ -11,28 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#ifndef USKIT_POLICY_FLOW_LEVELS_POLICY_H
+#define USKIT_POLICY_FLOW_LEVELS_POLICY_H
 
-#ifndef USKIT_POLICY_FLOW_GLOBAL_POLICY_H
-#define USKIT_POLICY_FLOW_GLOBAL_POLICY_H
-
-#include "policy/flow_policy.h"
-#include "policy/flow/recurrent_policy.h"
+#include "policy/flow/global_policy.h"
 #include "dynamic_config.h"
 
 namespace uskit {
 namespace policy {
 namespace flow {
 
-class AsyncGlobalPolicy : public AsyncInsideNodePolicy {
-public:
-    int init(const google::protobuf::RepeatedPtrField<FlowNodeConfig>& config) override;
-    int helper_ptr_init(HelperPtr helper) const override;
-    virtual int init_post_process(const FlowNodeConfig& node_config);
-    virtual int build_default_gc_config(FlowNodeConfig::GlobalCancelConfig* gc_config);
+class CascadeAsyncPolicy : public AsyncGlobalPolicy {
+    int init_post_process(const FlowNodeConfig& node_config) override;
+    int get_filterout_services(const rapidjson::Value& response,
+            std::shared_ptr<policy::FlowPolicyHelper> helper) const override;
 };
 
 }  // namespace flow
 }  // namespace policy
 }  // namespace uskit
 
-#endif  // USKIT_POLICY_FLOW_GLOBAL_POLICY_H
+#endif  // USKIT_POLICY_FLOW_LEVELS_POLICY_H

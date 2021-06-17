@@ -28,6 +28,5 @@
 #include BRPC_INCLUDE_PREFIX/controller.h>
 #include BRPC_INCLUDE_PREFIX/restful.h>
 #include BRPC_INCLUDE_PREFIX/server.h>
-#include BRPC_INCLUDE_PREFIX/nshead_message.h>
 
-#endif  //DMKIT_BRPC_H
+#endif  // USKIT_BRPC_H

@@ -32,17 +32,26 @@ public:
 
     // Initialize rank engine from configuration.
     // Returns 0 on success, -1 otherwise.
-    int init(const FlowEngineConfig& config);
+    int init(const std::string& root_dir, const std::string& usid);
+    int init(const USConfig& config);
+    int init_by_message(const FlowEngineConfig& flow_config);
+    int member_init(const USConfig& config);
+    int member_init(const std::string& root_dir, const std::string& usid);
+    int member_init_by_message(
+            const BackendEngineConfig& backend_config,
+            const RankEngineConfig& rank_config);
     // Run chat flow with user reqeust and generate response.
     // Returns 0 on success, -1 otherwise.
-    int run(USRequest& request, USResponse& response,
-            const BackendEngine* backend_engine,
-            const RankEngine* rank_engine) const;
+    int run(USRequest& request, USResponse& response) const;
 
 private:
     std::unique_ptr<policy::FlowPolicy> _flow_policy;
+    std::shared_ptr<BackendEngine> _backend_engine;
+    std::shared_ptr<RankEngine> _rank_engine;
+    rapidjson::Document _intervene_config_json;
+    std::string _curr_dir;
 };
 
-} // namespace uskit
+}  // namespace uskit
 
-#endif // USKIT_FLOW_ENGINE_H
+#endif  // USKIT_FLOW_ENGINE_H

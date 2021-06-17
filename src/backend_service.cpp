@@ -28,6 +28,10 @@ int BackendService::init(const ServiceConfig& service_config, Backend* backend) 
     _backend = backend;
     _name = service_config.name();
     _is_dynamic = _backend->is_dynamic();
+    if (_condition.init(service_config.success_flag()) != 0) {
+        US_LOG(ERROR) << "service success config initialize failed";
+        return -1;
+    }
     if (service_config.has_request()) {
         const RequestConfig& request_config = service_config.request();
         std::string request_policy_name(service_config.request_policy());
@@ -97,21 +101,6 @@ int BackendService::build_request(BackendController* cntl) const {
     return 0;
 }
 
-int BackendService::build_request(
-        const BackendEngine* backend_engine,
-        BackendController* cntl,
-        const std::unordered_map<std::string, FlowConfig>* flow_map,
-        const RankEngine* rank_engine) const {
-    if (!_request_policy) {
-        US_LOG(WARNING) << "request_policy is null";
-    }
-    if (_request_policy && _request_policy->run(backend_engine, cntl, flow_map, rank_engine) != 0) {
-        US_LOG(WARNING) << "Failed to build request for service [" << _name << "] with flow map";
-        return -1;
-    }
-    return 0;
-}
-
 int BackendService::parse_response(BackendController* cntl) const {
     if (_response_policy && _response_policy->run(cntl) != 0) {
         US_LOG(WARNING) << "Failed to parse response for service [" << _name << "]";
@@ -124,12 +113,21 @@ const std::string& BackendService::name() const {
     return _name;
 }
 
-const bool BackendService::is_dynamic() const {
+bool BackendService::is_dynamic() const {
     return _is_dynamic;
 }
 
 const BRPC_NAMESPACE::AdaptiveProtocolType BackendService::protocol() const {
     return _backend->protocol();
+}
+
+int BackendService::run_success_flag(expression::ExpressionContext& context ,bool& bool_value) const {
+    if (_condition.logical_and(context, bool_value) != 0) {
+        US_LOG(ERROR) << "Evaluate success flag failed.";
+        return -1;
+    }
+    US_DLOG(INFO) << "service [" << _name << "] success flag is: " << bool_value;
+    return 0;
 }
 
 }  // namespace uskit

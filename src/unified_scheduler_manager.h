@@ -23,9 +23,9 @@
 #include "unified_scheduler.h"
 #include "config.pb.h"
 #include "us.pb.h"
+#include "expression/driver.h"
 
-namespace uskit
-{ 
+namespace uskit {
 
 // Class for managing multiple unified schedulers.
 class UnifiedSchedulerManager {
@@ -53,7 +53,12 @@ private:
     std::vector<std::string> _required_params;
     std::unordered_map<std::string, std::string> _params_default;
     std::unordered_map<std::string, std::string> _params_path;
+    std::unordered_map<std::string, Expr> _params_expr;
+    bool _editable_response;
+    std::string _root_dir;
+    std::string _input_config_path;
 };
+
 } // namespace uskit
 
 #endif // USKIT_REUSABLE_UNIFIED_SCHEDULER_MANAGER_H

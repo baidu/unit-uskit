@@ -25,16 +25,13 @@ namespace backend {
 // Dynamic HTTP request policy.
 class DynamicHttpRequestPolicy : public BackendRequestPolicy {
 public:
+    DynamicHttpRequestPolicy() : BackendRequestPolicy() {}
     ~DynamicHttpRequestPolicy() {}
     int init(const RequestConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
-    int run(const BackendEngine* backend_engine,
-            BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const;
 
 private:
-    const Backend* _backend;
+    std::shared_ptr<BRPC_NAMESPACE::Channel> _channel;
     DynamicHttpRequestConfig _request_config;
 };
 

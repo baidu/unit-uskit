@@ -21,7 +21,7 @@ namespace policy {
 namespace backend {
 
 int RedisRequestPolicy::init(const RequestConfig& config, const Backend* backend) {
-    _backend = backend;
+    _channel = backend->channel();
     const BackendRequestConfig* template_config = nullptr;
     if (config.has_include()) {
         template_config = backend->request_config(config.include());
@@ -35,69 +35,6 @@ int RedisRequestPolicy::init(const RequestConfig& config, const Backend* backend
 }
 
 int RedisRequestPolicy::run(BackendController* cntl) const {
-    RedisController* redis_cntl = static_cast<RedisController*>(cntl);
-    BRPC_NAMESPACE::Controller& brpc_cntl = redis_cntl->brpc_controller();
-    expression::ExpressionContext request_context("redis request block", redis_cntl->context());
-
-    // Generate request config dynamically.
-    if (_request_config.run(request_context) != 0) {
-        US_LOG(ERROR) << "Failed to generate redis request config";
-        return -1;
-    }
-    US_DLOG(INFO) << "Generated request config: " << request_context.str();
-
-    rapidjson::Value* redis_cmd = request_context.get_variable("redis_cmd");
-    if (redis_cmd == nullptr) {
-        US_LOG(ERROR) << "Required redis command";
-        return -1;
-    } else {
-        BUTIL_NAMESPACE::StringPiece components[64];
-        BRPC_NAMESPACE::RedisRequest redis_request;
-        // Add Redis commands.
-        for (auto& cmd : redis_cmd->GetArray()) {
-            components[0] = cmd["op"].GetString();
-            int size = 1;
-            for (auto& arg : cmd["arg"].GetArray()) {
-                components[size++] = arg.GetString();
-            }
-            redis_request.AddCommandByComponents(components, size);
-        }
-
-        BRPC_NAMESPACE::Channel* channel = _backend->channel();
-        BRPC_NAMESPACE::RedisResponse& redis_response = redis_cntl->redis_response();
-        if (cntl->get_call_ids().empty()) {
-            channel->CallMethod(
-                    nullptr,
-                    &brpc_cntl,
-                    &redis_request,
-                    &redis_response,
-                    BRPC_NAMESPACE::DoNothing());
-        } else if (
-                cntl->get_cancel_order() == std::string("ALL") ||
-                cntl->get_cancel_order() == std::string("PRIORITY") ||
-                cntl->get_cancel_order() == std::string("HIERACHY")) {
-            channel->CallMethod(
-                    nullptr, &brpc_cntl, &redis_request, &redis_response, cntl->_done.get());
-        } else {
-           channel->CallMethod(
-                    nullptr,
-                    &brpc_cntl,
-                    &redis_request,
-                    &redis_response,
-                    BRPC_NAMESPACE::DoNothing());
-            US_LOG(WARNING) << "Fail to run cancel policy, no correct order given, ignored as NONE";
-            return 0;
-        }
-    }
-
-    return 0;
-}
-
-int RedisRequestPolicy::run(
-        const BackendEngine* backend_engine,
-        BackendController* cntl,
-        const std::unordered_map<std::string, FlowConfig>* flow_map,
-        const RankEngine* rank_engine) const {
     RedisController* redis_cntl = static_cast<RedisController*>(cntl);
     BRPC_NAMESPACE::Controller& brpc_cntl = redis_cntl->brpc_controller();
     expression::ExpressionContext request_context(
@@ -127,10 +64,9 @@ int RedisRequestPolicy::run(
             redis_request.AddCommandByComponents(components, size);
         }
 
-        BRPC_NAMESPACE::Channel* channel = _backend->channel();
         BRPC_NAMESPACE::RedisResponse& redis_response = redis_cntl->redis_response();
-        channel->CallMethod(
-                nullptr, &brpc_cntl, &redis_request, &redis_response, cntl->_jump_done.get());
+        _channel->CallMethod(
+                nullptr, &brpc_cntl, &redis_request, &redis_response, cntl->_done.get());
     }
 
     return 0;

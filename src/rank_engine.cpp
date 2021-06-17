@@ -27,7 +27,7 @@ RankEngine::~RankEngine() {
 int RankEngine::init(const RankEngineConfig& config) {
     for (int i = 0; i < config.rank_size(); ++i) {
         const RankNodeConfig& rank_config = config.rank(i);
-        std::unique_ptr<policy::RankPolicy> rank_policy(
+        std::shared_ptr<policy::RankPolicy> rank_policy(
             policy::PolicyManager::instance().get_rank_policy(rank_config.rank_policy()));
         if (!rank_policy) {
             LOG(ERROR) << "Rank policy [" << rank_config.rank_policy() << "] not found";

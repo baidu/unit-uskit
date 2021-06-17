@@ -1,4 +1,3 @@
-// Copyright (c) 2018 Baidu, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <boost/regex.hpp>
 #include "config.pb.h"
 #include "common.h"
 #include "expression/expression.h"
@@ -113,17 +113,18 @@ public:
     // Returns 0 on success, -1 otherwise.
     int run(expression::ExpressionContext& context) const;
 
-private:
+protected:
     Expr _http_method;
     Expr _http_uri;
-
+    // Dynamic configuration of HTTP request with host not pre-defined.
+    Expr _host_ip_port;
     KEMap _http_header;
     KEMap _http_query;
     KEMap _http_body;
 };
 
 // Dynamic configuration of dynamic HTTP request.
-class DynamicHttpRequestConfig : public BackendRequestConfig {
+class DynamicHttpRequestConfig : public HttpRequestConfig {
 public:
     DynamicHttpRequestConfig() {}
     ~DynamicHttpRequestConfig() {}
@@ -137,59 +138,10 @@ public:
     int run(expression::ExpressionContext& context) const;
 
 private:
-    Expr _http_method;
-    Expr _http_uri;
     Expr _dynamic_args_node;
     Expr _dynamic_args_path;
 
-    KEMap _http_header;
-    KEMap _http_query;
-    KEMap _http_body;
     KEMap _dynamic_args;
-};
-
-// Dynamic configuration of HTTP request with host not pre-defined.
-class HostDynHttpRequestConfig : public BackendRequestConfig {
-public:
-    HostDynHttpRequestConfig() {}
-    ~HostDynHttpRequestConfig() {}
-    HostDynHttpRequestConfig(HostDynHttpRequestConfig&&) = default;
-    // Initialize from configuration and template(optional).
-    // Returns 0 on success, -1 otherwise.
-    int init(const RequestConfig& config, const BackendRequestConfig* template_config);
-    // Evaluate all expressions within given context and generate HTTP
-    // request configuration.
-    // Returns 0 on success, -1 otherwise.
-    int run(expression::ExpressionContext& context) const;
-
-private:
-    Expr _http_method;
-    Expr _http_uri;
-    Expr _host_ip_port;
-
-    KEMap _http_header;
-    KEMap _http_query;
-    KEMap _http_body;
-};
-
-// Dynamic configuration of NsHead request.
-class NsheadRequestConfig : public BackendRequestConfig {
-public:
-    NsheadRequestConfig() {}
-    ~NsheadRequestConfig() {}
-    NsheadRequestConfig(NsheadRequestConfig&&) = default;
-    // Initialize from configuration and template(optional).
-    // Returns 0 on success, -1 otherwise.
-    int init(const RequestConfig& config, const BackendRequestConfig* template_config);
-    // Evaluate all expressions within given context and generate HTTP
-    // request configuration.
-    // Returns 0 on success, -1 otherwise.
-    int run(expression::ExpressionContext& context) const;
-
-private:
-    Expr _data_encode;
-
-    KEMap _http_body;
 };
 
 // Dynamic configuration of Redis command.
@@ -230,25 +182,37 @@ private:
     std::vector<RedisCommand> _redis_command;
 };
 
-// Dynamic configuration of backend if block.
-class BackendResponseIfConfig {
+// Base class for if block
+class BaseIfConfig {
 public:
-    BackendResponseIfConfig() {}
-    BackendResponseIfConfig(BackendResponseIfConfig&&) = default;
+    BaseIfConfig() {}
+    BaseIfConfig(BaseIfConfig&&) = default;
+
     // Initialize from configuration.
     // Returns 0 on success, -1 otherwise.
-    int init(const ResponseConfig::IfConfig& config);
+    virtual int init(const IfConfig& config);
     // Evaluate all expressions within given context and generate backend
     // if block.
     // Returns 0 on success, -1 otherwise.
-    int run(expression::ExpressionContext& context) const;
+    virtual int run(expression::ExpressionContext& context) const;
 
-private:
+protected:
     // Local definitions.
     KEMap _definition;
     // If conditions.
     KEVec _condition;
     KEMap _output;
+};
+
+// Dynamic configuration of backend if block.
+class BackendResponseIfConfig : public BaseIfConfig {
+public:
+    BackendResponseIfConfig() {}
+    BackendResponseIfConfig(BackendResponseIfConfig&&) = default;
+    // Evaluate all expressions within given context and generate backend
+    // if block.
+    // Returns 0 on success, -1 otherwise.
+    int run(expression::ExpressionContext& context) const override;
 };
 
 // Dynamic configuration of backend response.
@@ -285,6 +249,18 @@ private:
     const std::vector<bool>* _desc;
 };
 
+// Custom comparison class for output path ranking.
+class StringCompare {
+public:
+    StringCompare(const std::string& delimeter, bool is_root2leaf);
+    // Custom comparison operator.
+    bool operator()(const std::string& a, const std::string& b);
+
+private:
+    const std::string _delimeter;
+    bool _is_root2leaf;
+};
+
 // Forward declaration
 class RankEngine;
 
@@ -310,25 +286,18 @@ private:
 };
 
 // Dynamic configuration of flow if block.
-class FlowIfConfig {
+class FlowIfConfig : public BaseIfConfig {
 public:
     FlowIfConfig() {}
     FlowIfConfig(FlowIfConfig&&) = default;
 
-    // Initialize from configuration.
-    // Returns 0 on success, -1 otherwise.
-    int init(const FlowNodeConfig::IfConfig& config);
     // Evaluate all expressions within given context and generate flow
     // if block.
     // Returns 0 on success, -1 otherwise.
-    int run(expression::ExpressionContext& context) const;
+    int init(const IfConfig& config) override;
+    int run(expression::ExpressionContext& context) const override;
 
 private:
-    // Local definitions.
-    KEMap _definition;
-    // If conditions.
-    KEVec _condition;
-    KEMap _output;
     // Next flow node.
     Expr _next;
 };
@@ -378,6 +347,11 @@ private:
     Expr _next;
 };
 
+// Forward declaration
+namespace policy {
+class FlowPolicy;
+class FlowPolicyHelper;
+}  // namespace policy
 // Dynamic configuration of flow rank block.
 class FlowRankConfig {
 public:
@@ -390,7 +364,7 @@ public:
     // Evaluate all expressions within given context and generate flow
     // rank block.
     // Returns 0 on success, -1 otherwise.
-    int run(const RankEngine* rank_engine, expression::ExpressionContext& context) const;
+    int run(const policy::FlowPolicy* flow_policy, expression::ExpressionContext& context) const;
 
 private:
     // Retain top k rank results.
@@ -404,6 +378,7 @@ private:
 // Forward declaration
 class BackendEngine;
 class FlowConfig;
+class FlowInterveneConfig;
 
 class FlowRecallConfig {
 public:
@@ -413,18 +388,27 @@ public:
     // Initialize from configuration.
     // Returns 0 on success, -1 otherwise.
     int init(const FlowNodeConfig::RecallConfig& config, const std::string& flow_name);
+    int init(
+            const google::protobuf::RepeatedPtrField<std::string>& recall,
+            const std::string& flow_name);
+    int init(
+            const google::protobuf::RepeatedPtrField<FlowNodeConfig::DeliverConfig>&
+                    deliver_configs,
+            const std::string& flow_name);
+    // Init InterveneConfig
+    int intervene_init(const InterveneConfig& config, const InterveneFileConfig& file_config);
     // Evaluate all expressions within given context and generate flow
     // recall block.
     // Returns 0 on success, -1 otherwise.
-    int run(const BackendEngine* backend_engine, expression::ExpressionContext& context) const;
+    int run(const policy::FlowPolicy* flow_policy, expression::ExpressionContext& context) const;
 
-    int run(const BackendEngine* backend_engine,
-            std::vector<expression::ExpressionContext*>& context,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine,
-            std::shared_ptr<CallIdsVecThreadSafe> ids_ptr = nullptr) const;
+    int run(const policy::FlowPolicy* flow_policy,
+            std::vector<std::shared_ptr<uskit::expression::ExpressionContext>>& context_vec,
+            std::shared_ptr<policy::FlowPolicyHelper> helper) const;
 
-    const std::string get_cancel_order() const {
+    int get_intervene_service(expression::ExpressionContext& context, std::string& service) const;
+    int get_intervene_flow(expression::ExpressionContext& context, std::string& service) const;
+    const std::string& get_cancel_order() const {
         return _cancel_order;
     }
     const std::vector<std::pair<std::string, int>> get_recall_services() const {
@@ -433,7 +417,7 @@ public:
     const std::unordered_map<std::string, std::string> get_recall_next() const {
         return _recall_next;
     }
-    const std::string get_flow_name() const {
+    const std::string& get_flow_name() const {
         return _flow_name;
     }
 
@@ -443,27 +427,107 @@ private:
     std::vector<std::pair<std::string, int>> _recall_services;
     std::unordered_map<std::string, std::string> _recall_next;
     std::string _flow_name;
+    // Intervene config
+    std::unique_ptr<FlowInterveneConfig> _intervene_config;
 };
 
+// Dynamic configuration of deliver node
+class FlowDeliverConfig {
+    friend class FlowConfig;
+
+public:
+    FlowDeliverConfig() {}
+    FlowDeliverConfig(FlowDeliverConfig&&) = default;
+    int init(const FlowNodeConfig::DeliverConfig& d_config);
+    std::string get_flow_name() const {
+        return _classify_service + _SUFFIX;
+    }
+
+    static const std::string get_suffix() {
+        return _SUFFIX;
+    }
+
+private:
+    // flow name suffix
+    static const std::string _SUFFIX;
+
+    // num of class in one classification
+    size_t _class_num;
+    // classify service name
+    std::string _classify_service;
+    // delivered services, length = class_num - 1
+    std::vector<std::string> _deliver_service_vec;
+    // threshold that determined whether the service is recalled.
+    // if filed_type is STRING, completely matching with case sensitive is required
+    // if filed_type is NUMBER, the value could be trans to float.
+    rapidjson::Value _threshold_vec;
+    // only used to save allocator
+    rapidjson::Document _toy_document;
+    // threshold type, STRING or NUMBER(Float)
+    // FlowNodeConfig::DeliverConfig::fieldType _field_type;
+};
+
+class FlowInterveneConfig {
+public:
+    FlowInterveneConfig() {};
+    FlowInterveneConfig(FlowInterveneConfig&&) = default;
+    int init(const InterveneConfig& config, const InterveneFileConfig& file_config);
+    int parse_source(const std::string& source);
+    int init_by_intervene_file(const InterveneFileConfig& file_config);
+    int evaluate_source(expression::ExpressionContext& context, std::string& out_source) const;
+    int evaluate_target_service(const std::string& in_source, std::string& out_target) const;
+    int evaluate_target_flow(const std::string& in_source, std::string& out_target) const;
+
+private:
+    // Intervene Source
+    Expr _source;
+    // regexs which use regex_match manner
+    std::vector<boost::regex> _match_list;
+    // regexs which use regex_search manner
+    std::vector<boost::regex> _search_list;
+    // regex-service-map
+    std::unordered_map<std::string, std::string> _pattern_service_map;
+    // regex-flow-map
+    std::unordered_map<std::string, std::string> _pattern_flow_map;
+};
+
+class BackendController;
 // Dynamic configuration of flow node.
 class FlowConfig {
 public:
     FlowConfig() {}
+    FlowConfig(std::string curr_dir) : _curr_dir(curr_dir) {}
     FlowConfig(FlowConfig&&) = default;
     // Initialize from configuration.
     // Returns 0 on success, -1 otherwise.
     int init(const FlowNodeConfig& config);
+    // Partially init from FlowConfig with deliver_config
+    int init(FlowDeliverConfig&& d_config);
+
+    size_t deliver_config_size() const {
+        return _deliver_map.size();
+    }
+
+    std::unordered_map<std::string, FlowDeliverConfig>::iterator deliver_beg() {
+        return _deliver_map.begin();
+    }
+
+    std::unordered_map<std::string, FlowDeliverConfig>::iterator deliver_end() {
+        return _deliver_map.end();
+    }
+
+    void deliver_clear() {
+        _deliver_map.clear();
+    };
 
     // Evaluate definitions and recall specified backend services in parallel.
     // Returns 0 on success, -1 otherwise.
-    int recall(const BackendEngine* backend_engine, expression::ExpressionContext& context) const;
+    int recall(const policy::FlowPolicy* flow_policy, expression::ExpressionContext& context) const;
 
     int recall(
-            const BackendEngine* backend_engine,
-            std::vector<expression::ExpressionContext*>& context,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine,
-            std::shared_ptr<CallIdsVecThreadSafe> ids_ptr = nullptr) const;
+            const policy::FlowPolicy* flow_policy,
+            std::vector<std::shared_ptr<uskit::expression::ExpressionContext>>& context,
+            std::shared_ptr<policy::FlowPolicyHelper> helper) const;
 
     // assign global quit config to flow config.
     int set_quit_conifg(const FlowNodeConfig::GlobalCancelConfig& config);
@@ -473,12 +537,18 @@ public:
     int recall_run_def(expression::ExpressionContext& context) const;
     // Evaluate flow rank block and rank candidates with specified rank rule.
     // Returns 0 on success, -1 otherwise.
-    int rank(const RankEngine* rank_engine, expression::ExpressionContext& context) const;
+    int rank(const policy::FlowPolicy* flow_policy, expression::ExpressionContext& context) const;
     // Evaluate flow if block and output blocks to generate output result.
     // Returns 0 on success, -1 otherwise.
     int output(expression::ExpressionContext& context) const;
     // Get all services' name in recall config
     std::vector<std::string> get_recall_service_list() const;
+    // Find out needless next services by response and deliver config
+    std::vector<std::string> filterout_by_response(const rapidjson::Value& response) const;
+    // Set recall config's intervene config by InterveneConifg & InterveneFileConfig
+    int set_intervene_config(const InterveneConfig& config, const InterveneFileConfig file_config);
+    // Find out intervene next flow
+    int get_intervene_flow(expression::ExpressionContext& context, std::string& target_flow) const;
 
 private:
     std::string _name;
@@ -492,11 +562,16 @@ private:
     FlowGlobalCancelConfig _quit_config;
     // Flow rank blocks.
     std::vector<FlowRankConfig> _rank;
+    // Flow deliver blocks
+    std::unordered_map<std::string, FlowDeliverConfig> _deliver_map;
+    // Deliver config, _deliver_map and _deliver_config shouldn't be in the same flow
+    std::unique_ptr<FlowDeliverConfig> _deliver_config;
     // Flow recall block.
     std::unique_ptr<FlowRecallConfig> _recall_config;
     KEMap _output;
     // Next flow node.
     Expr _next;
+    std::string _curr_dir;
 };
 
 }  // namespace uskit

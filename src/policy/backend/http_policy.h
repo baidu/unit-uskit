@@ -25,16 +25,20 @@ namespace backend {
 // Default HTTP request policy.
 class HttpRequestPolicy : public BackendRequestPolicy {
 public:
+    HttpRequestPolicy() : BackendRequestPolicy(), _backend(nullptr) {}
     int init(const RequestConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
-    int run(
-            const BackendEngine* backend_engine,
+    virtual int call_method(
+            BRPC_NAMESPACE::Controller& brpc_cntl,
             BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const;
-private:
-    const Backend* _backend;
+            expression::ExpressionContext& request_context) const;
+
+protected:
     HttpRequestConfig _request_config;
+    const Backend* _backend;
+
+private:
+    std::shared_ptr<BRPC_NAMESPACE::Channel> _channel;
 };
 
 // Default HTTP response policy.
@@ -42,12 +46,13 @@ class HttpResponsePolicy : public BackendResponsePolicy {
 public:
     int init(const ResponseConfig& config, const Backend* backend);
     int run(BackendController* cntl) const;
-private:
+
+protected:
     BackendResponseConfig _response_config;
 };
 
-} // namespace backend
-} // namespace policy
-} // namespace uskit
+}  // namespace backend
+}  // namespace policy
+}  // namespace uskit
 
-#endif // USKIT_POLICY_BACKEND_HTTP_POLICY_H
+#endif  // USKIT_POLICY_BACKEND_HTTP_POLICY_H

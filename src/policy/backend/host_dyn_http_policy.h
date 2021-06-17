@@ -15,41 +15,31 @@
 #ifndef USKIT_POLICY_BACKEND_HOST_DYN_HTTP_POLICY_H
 #define USKIT_POLICY_BACKEND_HOST_DYN_HTTP_POLICY_H
 
-#include "policy/backend_policy.h"
 #include "dynamic_config.h"
+#include "policy/backend/http_policy.h"
 
 namespace uskit {
 namespace policy {
 namespace backend {
 
 // Default HTTP request policy.
-class HostDynHttpRequestPolicy : public BackendRequestPolicy {
+class HostDynHttpRequestPolicy : public HttpRequestPolicy {
 public:
-    HostDynHttpRequestPolicy() : BackendRequestPolicy(), _backend(nullptr) ,_channel(new BRPC_NAMESPACE::Channel) {}
-    int init(const RequestConfig& config, const Backend* backend);
-    int run(BackendController* cntl) const;
-    int run(
-            const BackendEngine* backend_engine,
+    HostDynHttpRequestPolicy() : HttpRequestPolicy(), _channel(new BRPC_NAMESPACE::Channel) {}
+    int call_method(
+            BRPC_NAMESPACE::Controller& brpc_cntl,
             BackendController* cntl,
-            const std::unordered_map<std::string, FlowConfig>* flow_map,
-            const RankEngine* rank_engine) const;
+            expression::ExpressionContext& request_context) const;
+
 private:
-    const Backend* _backend;
-    HostDynHttpRequestConfig _request_config;
     std::unique_ptr<BRPC_NAMESPACE::Channel> _channel;
 };
 
 // Default HTTP response policy.
-class HostDynHttpResponsePolicy : public BackendResponsePolicy {
-public:
-    int init(const ResponseConfig& config, const Backend* backend);
-    int run(BackendController* cntl) const;
-private:
-    BackendResponseConfig _response_config;
-};
+class HostDynHttpResponsePolicy : public HttpResponsePolicy {};
 
-} // namespace backend
-} // namespace policy
-} // namespace uskit
+}  // namespace backend
+}  // namespace policy
+}  // namespace uskit
 
-#endif // USKIT_POLICY_BACKEND_HTTP_POLICY_H
+#endif  // USKIT_POLICY_BACKEND_HTTP_POLICY_H

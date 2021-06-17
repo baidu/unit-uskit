@@ -360,7 +360,123 @@ USKit定义的配置中，支持进行表达式运算，表达式所具备的表
     样例：`array_func(['小度是谁'，'小度小度你好呀'，'小度'], ['replace_all', '小度', '百度'])`
 
     输出：`['百度是谁'， '百度百度你好呀'， '百度']`
-  
+
+21. hmac_sha1(str, key, is_sha1)
+
+    参数：
+
+    * str：需加密的字符串
+    * key：密钥字符串
+    * is_sha1：是否使用 SHA1 哈希函数，为 false 则使用 MD5
+
+    返回：加密后的字符串
+
+    样例：`hmac_sha1('yes', '12e3418nhhdsyuwo1o', true)`
+
+    输出：`'ef9928d229677e52aec63b83d37da5471be44d05'`
+
+22. base64_encode(str): 对字符串进行 base64 加密
+
+    参数：
+
+    * str：字符串
+
+    返回：加密后的字符串
+
+    样例：`base64_encode('hello world')`
+
+    输出：`'aGVsbG8gd29ybGQ'`
+
+23. nonce(length): 获取指定长度的随机字符串
+
+    参数：
+
+    * length：指定字符串长度
+
+    返回：获取的字符串
+
+    样例：`nonce(5)`
+
+    输出：`1aB2o`
+
+24. query_encode(str): 对字符串执行百分比编码
+
+    参数：
+
+    * str：字符串
+
+    返回：编码后的字符串
+
+    样例：`query_encode('hello world')`
+
+    输出：`'hello%20world'`
+
+25. split(str[, delimiter=" "])：对字符串使用指定分隔符进行切分
+
+    参数：
+
+    * str：字符串
+    * delimiter(optional)：分隔符，默认为空格
+
+    返回：切分后的字符串数组
+
+    样例：`split('hello,world', ',')`
+
+    输出：`['hello', 'world']`
+
+26. str_slice(str, start, end): 从字符串提取[start, end)子串(不包括end)
+
+    参数：
+
+    * str：字符串
+    * start：开始位置
+    * end(optional)：结束位置，默认为字符串结尾
+
+    返回：字符串
+
+    样例：`str_slice('hello,world', 1, 5)`
+
+    输出：`'ello'`
+
+27. join(args, delimiter): 使用指定分隔符连接数组
+
+    参数：
+
+    * args：数组，其元素为字符串或者数字
+    * delimiter：分隔符
+
+    返回：字符串
+
+    样例：`join([1, 2, 3, 'yes'], ',')`
+
+    输出：`'1,2,3,yes'`
+
+28. str_length(str): 计算字符串的长度
+
+    参数：
+
+    * str：字符串
+
+    返回：字符串的长度
+
+    样例：`str_length('yes')`
+
+    输出：`3`
+
+29. str_find(str, substr[, pos=0]): 查找子字符串在主字符串中第一次出现的索引
+
+    参数：
+
+    * str：字符串
+    * substr：目标子字符串
+    * pos：查找起始位置
+
+    返回：索引数值，-1 表示未找到
+
+    样例：`str_find('yes or no', 'es')`
+
+    输出：`1`
+
 #### 函数自定义
 
 用户可以通过C++编写满足制定签名(详见代码function_manager.h中的FuntionPtr)的函数，并在global.cpp中进行注册添加至function_manager，即可在配置中进行调用

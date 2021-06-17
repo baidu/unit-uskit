@@ -198,11 +198,17 @@ class CallExpression : public Expression {
 public:
     CallExpression(const std::string& func_name, std::vector<Expression*>& args);
     ~CallExpression();
-    int run(ExpressionContext& context, rapidjson::Value& value);
+    int run (ExpressionContext& context,
+            rapidjson::Value& value);
+    int run(ExpressionContext& context,
+            rapidjson::Value& value,
+            const rapidjson::Value& input);
+    int set_next(CallExpression* next);
 
 private:
     std::string _func_name;
     std::vector<std::unique_ptr<Expression>> _args;
+    std::unique_ptr<CallExpression> _next;
 };
 
 // Variable expression.
